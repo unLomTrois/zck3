@@ -6,13 +6,16 @@ pub const TokenType = enum {
     Literal,
     Operator,
     Delimiter,
+    Comment, // TODO: add comments support
 };
 
+// TODO: add position tracking
 pub const Token = struct {
     type: TokenType,
     value: []const u8,
 };
 
+// TODO: apply iterator pattern to make it more efficient (allocation-free)
 pub const Lexer = struct {
     source: []const u8,
     pos: usize,
