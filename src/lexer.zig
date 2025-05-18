@@ -104,102 +104,66 @@ fn isIdentifierChar(c: u8) bool {
     return std.ascii.isAlphanumeric(c) or c == '_';
 }
 
-test "Field assignment" {
-    const source_code = "key = value";
+/// Helper function for testing the lexer without boilerplate code.
+fn expectTokens(source_code: []const u8, expected: []const Token) !void {
     var lexer = Lexer.init(source_code);
     const allocator = std.testing.allocator;
     const tokens = try lexer.lex(allocator);
     defer allocator.free(tokens);
+    try std.testing.expectEqual(expected.len, tokens.len);
+    for (expected, tokens) |exp, got| {
+        try std.testing.expectEqualDeep(exp, got);
+    }
+}
+
+test "Field assignment" {
     const expected = [_]Token{
         .{ .type = TokenType.Identifier, .value = "key" },
         .{ .type = TokenType.Operator, .value = "=" },
         .{ .type = TokenType.Identifier, .value = "value" },
     };
-    try std.testing.expectEqual(expected.len, tokens.len);
-    for (expected, tokens) |exp, got| {
-        try std.testing.expectEqualDeep(exp, got);
-    }
+    try expectTokens("key = value", &expected);
 }
 
 test "Numbers" {
-    const source_code = "123 456";
-    var lexer = Lexer.init(source_code);
-    const allocator = std.testing.allocator;
-    const tokens = try lexer.lex(allocator);
-    defer allocator.free(tokens);
     const expected = [_]Token{
         .{ .type = TokenType.Literal, .value = "123" },
         .{ .type = TokenType.Literal, .value = "456" },
     };
-    try std.testing.expectEqual(expected.len, tokens.len);
-    for (expected, tokens) |exp, got| {
-        try std.testing.expectEqualDeep(exp, got);
-    }
+    try expectTokens("123 456", &expected);
 }
 
 test "Strings" {
-    const source_code = "\"test string\"";
-    var lexer = Lexer.init(source_code);
-    const allocator = std.testing.allocator;
-    const tokens = try lexer.lex(allocator);
-    defer allocator.free(tokens);
     const expected = [_]Token{
         .{ .type = TokenType.Literal, .value = "\"test string\"" },
     };
-    try std.testing.expectEqual(expected.len, tokens.len);
-    for (expected, tokens) |exp, got| {
-        try std.testing.expectEqualDeep(exp, got);
-    }
+    try expectTokens("\"test string\"", &expected);
 }
 
 test "Blocks" {
-    const source_code = "{ }";
-    var lexer = Lexer.init(source_code);
-    const allocator = std.testing.allocator;
-    const tokens = try lexer.lex(allocator);
-    defer allocator.free(tokens);
     const expected = [_]Token{
         .{ .type = TokenType.Delimiter, .value = "{" },
         .{ .type = TokenType.Delimiter, .value = "}" },
     };
-    try std.testing.expectEqual(expected.len, tokens.len);
-    for (expected, tokens) |exp, got| {
-        try std.testing.expectEqualDeep(exp, got);
-    }
+    try expectTokens("{ }", &expected);
 }
 
 test "Dot notation" {
-    const source_code = "test_events.1";
-    var lexer = Lexer.init(source_code);
-    const allocator = std.testing.allocator;
-    const tokens = try lexer.lex(allocator);
-    defer allocator.free(tokens);
     const expected = [_]Token{
         .{ .type = TokenType.Identifier, .value = "test_events" },
         .{ .type = TokenType.Operator, .value = "." },
         .{ .type = TokenType.Literal, .value = "1" },
     };
-    try std.testing.expectEqual(expected.len, tokens.len);
-    for (expected, tokens) |exp, got| {
-        try std.testing.expectEqualDeep(exp, got);
-    }
+    try expectTokens("test_events.1", &expected);
 }
 
 test "Colon notation" {
-    const source_code = "scope:father";
-    var lexer = Lexer.init(source_code);
-    const allocator = std.testing.allocator;
-    const tokens = try lexer.lex(allocator);
-    defer allocator.free(tokens);
     const expected = [_]Token{
         .{ .type = TokenType.Identifier, .value = "scope" },
         .{ .type = TokenType.Operator, .value = ":" },
         .{ .type = TokenType.Identifier, .value = "father" },
     };
-    try std.testing.expectEqual(expected.len, tokens.len);
-    for (expected, tokens) |exp, got| {
-        try std.testing.expectEqualDeep(exp, got);
-    }
+    try expectTokens("scope:father", &expected);
 }
 
 test "Complex input" {
@@ -209,12 +173,6 @@ test "Complex input" {
         \\  title = "Test Event"
         \\}
     ;
-
-    var lexer = Lexer.init(source_code);
-    const allocator = std.testing.allocator;
-    const tokens = try lexer.lex(allocator);
-    defer allocator.free(tokens);
-
     const expected = [_]Token{
         .{ .type = TokenType.Identifier, .value = "namespace" },
         .{ .type = TokenType.Operator, .value = "=" },
@@ -229,9 +187,5 @@ test "Complex input" {
         .{ .type = TokenType.Literal, .value = "\"Test Event\"" },
         .{ .type = TokenType.Delimiter, .value = "}" },
     };
-
-    try std.testing.expectEqual(expected.len, tokens.len);
-    for (expected, tokens) |exp, got| {
-        try std.testing.expectEqualDeep(exp, got);
-    }
+    try expectTokens(source_code, &expected);
 }
