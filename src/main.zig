@@ -2,45 +2,76 @@
 //! you are building an executable. If you are making a library, the convention
 //! is to delete this file and start with root.zig instead.
 
-pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // Don't forget to flush!
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-test "use other module" {
-    try std.testing.expectEqual(@as(i32, 150), lib.add(100, 50));
-}
-
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
-        }
-    };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
-}
-
 const std = @import("std");
 
-/// This imports the separate module containing `root.zig`. Take a look in `build.zig` for details.
-const lib = @import("zck3_lib");
+/// Returns the slice with a leading UTF-8 BOM (EF BB BF) stripped off.
+/// If there is no BOM the original slice is returned unchanged.
+inline fn stripUtf8Bom(bytes: []const u8) []const u8 {
+    if (bytes.len >= 3 and
+        bytes[0] == 0xEF and
+        bytes[1] == 0xBB and
+        bytes[2] == 0xBF)
+    {
+        return bytes[3..];
+    }
+    return bytes;
+}
+
+test "stripUtf8Bom bom" {
+    const raw_bytes = [_]u8{ 0xEF, 0xBB, 0xBF, 'l', 'o', 'l' };
+
+    const bytes: []const u8 = stripUtf8Bom(&raw_bytes);
+
+    try std.testing.expectEqual(bytes[0], 'l');
+    try std.testing.expectEqual(bytes[1], 'o');
+    try std.testing.expectEqual(bytes[2], 'l');
+}
+
+test "stripUtf8Bom no bom" {
+    const raw_bytes = [_]u8{ 'l', 'o', 'l' };
+
+    const bytes: []const u8 = stripUtf8Bom(&raw_bytes);
+
+    try std.testing.expectEqual(bytes[0], 'l');
+    try std.testing.expectEqual(bytes[1], 'o');
+    try std.testing.expectEqual(bytes[2], 'l');
+}
+
+test "stripUtf8Bom bom and empty" {
+    const raw_bytes = [_]u8{ 0xEF, 0xBB, 0xBF };
+    const bytes: []const u8 = stripUtf8Bom(&raw_bytes);
+    try std.testing.expect(bytes.len == 0);
+}
+
+pub fn main() !void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    // var args = try std.process.argsAlloc(allocator);
+    // defer std.process.argsFree(allocator, args);
+
+    // const exename = args[0];
+    // args = args[1..];
+
+    // try std.io.getStdOut().writer().print("{s}\n", .{exename});
+    const stdout = std.io.getStdOut().writer();
+
+    const file = try std.fs.cwd().openFile("kek.txt", .{});
+    defer file.close();
+
+    // todo: optimize using buffered reader
+    const raw_bytes = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(raw_bytes);
+    std.debug.assert(std.unicode.utf8ValidateSlice(raw_bytes));
+
+    const bytes = stripUtf8Bom(raw_bytes);
+
+    const view = try std.unicode.Utf8View.init(bytes);
+    var iterator = view.iterator();
+
+    while (iterator.nextCodepoint()) |codepoint| {
+        // '{c}' formats a u21 (Unicode scalar value) back to UTF-8
+        try stdout.print("{u}\n", .{codepoint});
+    }
+}
