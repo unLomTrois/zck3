@@ -1,1 +1,1 @@
-﻿lol
+﻿key = value
