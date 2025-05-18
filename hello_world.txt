@@ -1,0 +1,12 @@
+﻿namespace = "hello_world"
+
+hello_world.1 = {
+    title = hello_world.1.t
+    desc = hello_world.1.desc
+
+    option = {
+        name = hello_world.1.a
+
+        debug_lod = "Hello World!"
+    }
+}

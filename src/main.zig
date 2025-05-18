@@ -18,7 +18,7 @@ pub fn main() !void {
 
     const stdout = std.io.getStdOut().writer();
 
-    const filepath = "kek.txt";
+    const filepath = "hello_world.txt";
     const file = try openFile(filepath);
     defer file.close();
 
