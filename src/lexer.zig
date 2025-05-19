@@ -37,12 +37,17 @@ pub const Lexer = struct {
                 'a'...'z', 'A'...'Z', '_' => self.lexIdentifier(),
                 '"' => try self.lexString(),
                 '=', '.', ':' => TokenType.Operator,
-                ' ', '\t', '\n', '\r' => {
-                    continue;
-                },
                 '{', '}' => TokenType.Delimiter,
                 '0'...'9' => self.lexNumber(),
                 else => {
+                    if (std.ascii.isWhitespace(c)) {
+                        self.skipWhitespace();
+                        continue;
+                    } else if (c == '#') {
+                        self.skipComment();
+                        continue;
+                    }
+
                     std.log.err("Unknown character: {c} at {}", .{ c, self.pos });
                     return error.UnknownCharacter;
                 },
@@ -100,6 +105,18 @@ pub const Lexer = struct {
         _ = self.advance(); // consume closing quote
 
         return TokenType.Literal;
+    }
+
+    fn skipWhitespace(self: *Lexer) void {
+        while (std.ascii.isWhitespace(self.peek())) {
+            _ = self.advance();
+        }
+    }
+
+    fn skipComment(self: *Lexer) void {
+        while (self.peek() != '\n' and !self.isAtEnd()) {
+            _ = self.advance();
+        }
     }
 };
 
@@ -191,4 +208,32 @@ test "Complex input" {
         .{ .type = TokenType.Delimiter, .value = "}" },
     };
     try expectTokens(source_code, &expected);
+}
+
+test "@At-constants" {
+    const source_code = "@knight = \"path/to/file\"\nicon = @knight";
+
+    const expected = [_]Token{
+        .{ .type = TokenType.Identifier, .value = "@knight" },
+        .{ .type = TokenType.Operator, .value = "=" },
+        .{ .type = TokenType.Literal, .value = "\"path/to/file\"" },
+        .{ .type = TokenType.Identifier, .value = "icon" },
+        .{ .type = TokenType.Operator, .value = "=" },
+        .{ .type = TokenType.Identifier, .value = "@knight" },
+    };
+    try expectTokens(source_code, &expected);
+}
+
+test "Comments" { // TODO: add comments support
+    const source_code = "# This is a comment\nkey = value#inline-comment";
+    const expected = [_]Token{
+        .{ .type = TokenType.Identifier, .value = "key" },
+        .{ .type = TokenType.Operator, .value = "=" },
+        .{ .type = TokenType.Identifier, .value = "value" },
+    };
+    try expectTokens(source_code, &expected);
+}
+
+test "Unknown character" { // TODO: add error handling
+    try std.testing.expect(false);
 }
