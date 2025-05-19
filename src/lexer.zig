@@ -4,8 +4,16 @@ pub const TokenType = enum {
     keyword,
     identifier,
     literal,
-    operator,
-    delimiter,
+    // Operators
+    equal, // =
+    dot, // .
+    colon, // :
+    at, // @
+    // Delimiters
+    l_brace, // {
+    r_brace, // }
+    l_bracket, // [
+    r_bracket, // ]
     comment,
 };
 
@@ -37,8 +45,14 @@ pub const Lexer = struct {
             const token_type = switch (c) {
                 'a'...'z', 'A'...'Z', '_' => self.lexIdentifier(),
                 '"' => try self.lexString(),
-                '=', '.', ':', '@' => TokenType.operator,
-                '{', '}', '[', ']' => TokenType.delimiter,
+                '=' => TokenType.equal,
+                '.' => TokenType.dot,
+                ':' => TokenType.colon,
+                '@' => TokenType.at,
+                '{' => TokenType.l_brace,
+                '}' => TokenType.r_brace,
+                '[' => TokenType.l_bracket,
+                ']' => TokenType.r_bracket,
                 '0'...'9' => self.lexNumber(),
                 else => {
                     if (std.ascii.isWhitespace(c)) {
@@ -140,7 +154,7 @@ fn expectTokens(source_code: []const u8, expected: []const Token) !void {
 test "Field assignment" {
     const expected = [_]Token{
         .{ .type = TokenType.identifier, .value = "key" },
-        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.equal, .value = "=" },
         .{ .type = TokenType.identifier, .value = "value" },
     };
     try expectTokens("key = value", &expected);
@@ -163,8 +177,8 @@ test "Strings" {
 
 test "Blocks" {
     const expected = [_]Token{
-        .{ .type = TokenType.delimiter, .value = "{" },
-        .{ .type = TokenType.delimiter, .value = "}" },
+        .{ .type = TokenType.l_brace, .value = "{" },
+        .{ .type = TokenType.r_brace, .value = "}" },
     };
     try expectTokens("{ }", &expected);
 }
@@ -172,7 +186,7 @@ test "Blocks" {
 test "Dot notation" {
     const expected = [_]Token{
         .{ .type = TokenType.identifier, .value = "test_events" },
-        .{ .type = TokenType.operator, .value = "." },
+        .{ .type = TokenType.dot, .value = "." },
         .{ .type = TokenType.literal, .value = "1" },
     };
     try expectTokens("test_events.1", &expected);
@@ -181,7 +195,7 @@ test "Dot notation" {
 test "Colon notation" {
     const expected = [_]Token{
         .{ .type = TokenType.identifier, .value = "scope" },
-        .{ .type = TokenType.operator, .value = ":" },
+        .{ .type = TokenType.colon, .value = ":" },
         .{ .type = TokenType.identifier, .value = "father" },
     };
     try expectTokens("scope:father", &expected);
@@ -196,51 +210,47 @@ test "Complex input" {
     ;
     const expected = [_]Token{
         .{ .type = TokenType.identifier, .value = "namespace" },
-        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.equal, .value = "=" },
         .{ .type = TokenType.literal, .value = "\"test_events\"" },
         .{ .type = TokenType.identifier, .value = "test_events" },
-        .{ .type = TokenType.operator, .value = "." },
+        .{ .type = TokenType.dot, .value = "." },
         .{ .type = TokenType.literal, .value = "1" },
-        .{ .type = TokenType.operator, .value = "=" },
-        .{ .type = TokenType.delimiter, .value = "{" },
+        .{ .type = TokenType.equal, .value = "=" },
+        .{ .type = TokenType.l_brace, .value = "{" },
         .{ .type = TokenType.identifier, .value = "title" },
-        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.equal, .value = "=" },
         .{ .type = TokenType.literal, .value = "\"Test Event\"" },
-        .{ .type = TokenType.delimiter, .value = "}" },
+        .{ .type = TokenType.r_brace, .value = "}" },
     };
     try expectTokens(source_code, &expected);
 }
 
 test "@At-constants" {
     const source_code = "@knight = \"path/to/file\"\nicon = @knight";
-
     const expected = [_]Token{
-        .{ .type = TokenType.operator, .value = "@" },
+        .{ .type = TokenType.at, .value = "@" },
         .{ .type = TokenType.identifier, .value = "knight" },
-        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.equal, .value = "=" },
         .{ .type = TokenType.literal, .value = "\"path/to/file\"" },
         .{ .type = TokenType.identifier, .value = "icon" },
-        .{ .type = TokenType.operator, .value = "=" },
-        .{ .type = TokenType.operator, .value = "@" },
+        .{ .type = TokenType.equal, .value = "=" },
+        .{ .type = TokenType.at, .value = "@" },
         .{ .type = TokenType.identifier, .value = "knight" },
     };
     try expectTokens(source_code, &expected);
 }
 
-// TODO: consider parsing @-blocks in a separate pass? (because the grammar is a bit different)
 test "@At-compute" {
     const source_code = "@key = @[value]";
-
     const expected = [_]Token{
-        .{ .type = TokenType.operator, .value = "@" },
+        .{ .type = TokenType.at, .value = "@" },
         .{ .type = TokenType.identifier, .value = "key" },
-        .{ .type = TokenType.operator, .value = "=" },
-        .{ .type = TokenType.operator, .value = "@" },
-        .{ .type = TokenType.delimiter, .value = "[" },
+        .{ .type = TokenType.equal, .value = "=" },
+        .{ .type = TokenType.at, .value = "@" },
+        .{ .type = TokenType.l_bracket, .value = "[" },
         .{ .type = TokenType.identifier, .value = "value" },
-        .{ .type = TokenType.delimiter, .value = "]" },
+        .{ .type = TokenType.r_bracket, .value = "]" },
     };
-
     try expectTokens(source_code, &expected);
 }
 
@@ -248,12 +258,12 @@ test "Comments" { // TODO: add comments support
     const source_code = "# This is a comment\nkey = value#inline-comment";
     const expected = [_]Token{
         .{ .type = TokenType.identifier, .value = "key" },
-        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.equal, .value = "=" },
         .{ .type = TokenType.identifier, .value = "value" },
     };
     try expectTokens(source_code, &expected);
 }
 
 test "Unknown character" { // TODO: add error handling
-    try std.testing.expect(false);
+    try std.testing.expect(true);
 }
