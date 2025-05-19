@@ -226,6 +226,7 @@ test "@At-constants" {
     try expectTokens(source_code, &expected);
 }
 
+// TODO: consider parsing @-blocks in a separate pass? (because the grammar is a bit different)
 test "@At-compute" {
     const source_code = "@key = @[value]";
 
