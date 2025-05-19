@@ -6,7 +6,7 @@ pub const TokenType = enum {
     Literal,
     Operator,
     Delimiter,
-    Comment, // TODO: add comments support
+    Comment,
 };
 
 // TODO: add position tracking
@@ -214,13 +214,13 @@ test "@At-constants" {
     const source_code = "@knight = \"path/to/file\"\nicon = @knight";
 
     const expected = [_]Token{
-.{ .type = TokenType.Operator, .value = "@" },
+        .{ .type = TokenType.Operator, .value = "@" },
         .{ .type = TokenType.Identifier, .value = "knight" },
         .{ .type = TokenType.Operator, .value = "=" },
         .{ .type = TokenType.Literal, .value = "\"path/to/file\"" },
         .{ .type = TokenType.Identifier, .value = "icon" },
         .{ .type = TokenType.Operator, .value = "=" },
-.{ .type = TokenType.Operator, .value = "@" },
+        .{ .type = TokenType.Operator, .value = "@" },
         .{ .type = TokenType.Identifier, .value = "knight" },
     };
     try expectTokens(source_code, &expected);
