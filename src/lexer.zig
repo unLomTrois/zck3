@@ -1,12 +1,12 @@
 const std = @import("std");
 
 pub const TokenType = enum {
-    Keyword,
-    Identifier,
-    Literal,
-    Operator,
-    Delimiter,
-    Comment,
+    keyword,
+    identifier,
+    literal,
+    operator,
+    delimiter,
+    comment,
 };
 
 // TODO: add position tracking
@@ -37,8 +37,8 @@ pub const Lexer = struct {
             const token_type = switch (c) {
                 'a'...'z', 'A'...'Z', '_' => self.lexIdentifier(),
                 '"' => try self.lexString(),
-                '=', '.', ':', '@' => TokenType.Operator,
-                '{', '}', '[', ']' => TokenType.Delimiter,
+                '=', '.', ':', '@' => TokenType.operator,
+                '{', '}', '[', ']' => TokenType.delimiter,
                 '0'...'9' => self.lexNumber(),
                 else => {
                     if (std.ascii.isWhitespace(c)) {
@@ -85,14 +85,14 @@ pub const Lexer = struct {
         while (isIdentifierChar(self.peek())) {
             _ = self.advance();
         }
-        return TokenType.Identifier;
+        return TokenType.identifier;
     }
 
     fn lexNumber(self: *Lexer) TokenType {
         while (std.ascii.isDigit(self.peek())) {
             _ = self.advance();
         }
-        return TokenType.Literal;
+        return TokenType.literal;
     }
 
     fn lexString(self: *Lexer) !TokenType {
@@ -105,7 +105,7 @@ pub const Lexer = struct {
         }
         _ = self.advance(); // consume closing quote
 
-        return TokenType.Literal;
+        return TokenType.literal;
     }
 
     fn skipWhitespace(self: *Lexer) void {
@@ -139,50 +139,50 @@ fn expectTokens(source_code: []const u8, expected: []const Token) !void {
 
 test "Field assignment" {
     const expected = [_]Token{
-        .{ .type = TokenType.Identifier, .value = "key" },
-        .{ .type = TokenType.Operator, .value = "=" },
-        .{ .type = TokenType.Identifier, .value = "value" },
+        .{ .type = TokenType.identifier, .value = "key" },
+        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.identifier, .value = "value" },
     };
     try expectTokens("key = value", &expected);
 }
 
 test "Numbers" {
     const expected = [_]Token{
-        .{ .type = TokenType.Literal, .value = "123" },
-        .{ .type = TokenType.Literal, .value = "456" },
+        .{ .type = TokenType.literal, .value = "123" },
+        .{ .type = TokenType.literal, .value = "456" },
     };
     try expectTokens("123 456", &expected);
 }
 
 test "Strings" {
     const expected = [_]Token{
-        .{ .type = TokenType.Literal, .value = "\"test string\"" },
+        .{ .type = TokenType.literal, .value = "\"test string\"" },
     };
     try expectTokens("\"test string\"", &expected);
 }
 
 test "Blocks" {
     const expected = [_]Token{
-        .{ .type = TokenType.Delimiter, .value = "{" },
-        .{ .type = TokenType.Delimiter, .value = "}" },
+        .{ .type = TokenType.delimiter, .value = "{" },
+        .{ .type = TokenType.delimiter, .value = "}" },
     };
     try expectTokens("{ }", &expected);
 }
 
 test "Dot notation" {
     const expected = [_]Token{
-        .{ .type = TokenType.Identifier, .value = "test_events" },
-        .{ .type = TokenType.Operator, .value = "." },
-        .{ .type = TokenType.Literal, .value = "1" },
+        .{ .type = TokenType.identifier, .value = "test_events" },
+        .{ .type = TokenType.operator, .value = "." },
+        .{ .type = TokenType.literal, .value = "1" },
     };
     try expectTokens("test_events.1", &expected);
 }
 
 test "Colon notation" {
     const expected = [_]Token{
-        .{ .type = TokenType.Identifier, .value = "scope" },
-        .{ .type = TokenType.Operator, .value = ":" },
-        .{ .type = TokenType.Identifier, .value = "father" },
+        .{ .type = TokenType.identifier, .value = "scope" },
+        .{ .type = TokenType.operator, .value = ":" },
+        .{ .type = TokenType.identifier, .value = "father" },
     };
     try expectTokens("scope:father", &expected);
 }
@@ -195,18 +195,18 @@ test "Complex input" {
         \\}
     ;
     const expected = [_]Token{
-        .{ .type = TokenType.Identifier, .value = "namespace" },
-        .{ .type = TokenType.Operator, .value = "=" },
-        .{ .type = TokenType.Literal, .value = "\"test_events\"" },
-        .{ .type = TokenType.Identifier, .value = "test_events" },
-        .{ .type = TokenType.Operator, .value = "." },
-        .{ .type = TokenType.Literal, .value = "1" },
-        .{ .type = TokenType.Operator, .value = "=" },
-        .{ .type = TokenType.Delimiter, .value = "{" },
-        .{ .type = TokenType.Identifier, .value = "title" },
-        .{ .type = TokenType.Operator, .value = "=" },
-        .{ .type = TokenType.Literal, .value = "\"Test Event\"" },
-        .{ .type = TokenType.Delimiter, .value = "}" },
+        .{ .type = TokenType.identifier, .value = "namespace" },
+        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.literal, .value = "\"test_events\"" },
+        .{ .type = TokenType.identifier, .value = "test_events" },
+        .{ .type = TokenType.operator, .value = "." },
+        .{ .type = TokenType.literal, .value = "1" },
+        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.delimiter, .value = "{" },
+        .{ .type = TokenType.identifier, .value = "title" },
+        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.literal, .value = "\"Test Event\"" },
+        .{ .type = TokenType.delimiter, .value = "}" },
     };
     try expectTokens(source_code, &expected);
 }
@@ -215,14 +215,14 @@ test "@At-constants" {
     const source_code = "@knight = \"path/to/file\"\nicon = @knight";
 
     const expected = [_]Token{
-        .{ .type = TokenType.Operator, .value = "@" },
-        .{ .type = TokenType.Identifier, .value = "knight" },
-        .{ .type = TokenType.Operator, .value = "=" },
-        .{ .type = TokenType.Literal, .value = "\"path/to/file\"" },
-        .{ .type = TokenType.Identifier, .value = "icon" },
-        .{ .type = TokenType.Operator, .value = "=" },
-        .{ .type = TokenType.Operator, .value = "@" },
-        .{ .type = TokenType.Identifier, .value = "knight" },
+        .{ .type = TokenType.operator, .value = "@" },
+        .{ .type = TokenType.identifier, .value = "knight" },
+        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.literal, .value = "\"path/to/file\"" },
+        .{ .type = TokenType.identifier, .value = "icon" },
+        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.operator, .value = "@" },
+        .{ .type = TokenType.identifier, .value = "knight" },
     };
     try expectTokens(source_code, &expected);
 }
@@ -232,13 +232,13 @@ test "@At-compute" {
     const source_code = "@key = @[value]";
 
     const expected = [_]Token{
-        .{ .type = TokenType.Operator, .value = "@" },
-        .{ .type = TokenType.Identifier, .value = "key" },
-        .{ .type = TokenType.Operator, .value = "=" },
-        .{ .type = TokenType.Operator, .value = "@" },
-        .{ .type = TokenType.Delimiter, .value = "[" },
-        .{ .type = TokenType.Identifier, .value = "value" },
-        .{ .type = TokenType.Delimiter, .value = "]" },
+        .{ .type = TokenType.operator, .value = "@" },
+        .{ .type = TokenType.identifier, .value = "key" },
+        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.operator, .value = "@" },
+        .{ .type = TokenType.delimiter, .value = "[" },
+        .{ .type = TokenType.identifier, .value = "value" },
+        .{ .type = TokenType.delimiter, .value = "]" },
     };
 
     try expectTokens(source_code, &expected);
@@ -247,9 +247,9 @@ test "@At-compute" {
 test "Comments" { // TODO: add comments support
     const source_code = "# This is a comment\nkey = value#inline-comment";
     const expected = [_]Token{
-        .{ .type = TokenType.Identifier, .value = "key" },
-        .{ .type = TokenType.Operator, .value = "=" },
-        .{ .type = TokenType.Identifier, .value = "value" },
+        .{ .type = TokenType.identifier, .value = "key" },
+        .{ .type = TokenType.operator, .value = "=" },
+        .{ .type = TokenType.identifier, .value = "value" },
     };
     try expectTokens(source_code, &expected);
 }
