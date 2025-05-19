@@ -36,8 +36,8 @@ pub const Lexer = struct {
             const token_type = switch (c) {
                 'a'...'z', 'A'...'Z', '_' => self.lexIdentifier(),
                 '"' => try self.lexString(),
-                '=', '.', ':' => TokenType.Operator,
-                '{', '}' => TokenType.Delimiter,
+                '=', '.', ':', '@' => TokenType.Operator,
+                '{', '}', '[', ']' => TokenType.Delimiter,
                 '0'...'9' => self.lexNumber(),
                 else => {
                     if (std.ascii.isWhitespace(c)) {
@@ -221,6 +221,22 @@ test "@At-constants" {
         .{ .type = TokenType.Operator, .value = "=" },
         .{ .type = TokenType.Identifier, .value = "@knight" },
     };
+    try expectTokens(source_code, &expected);
+}
+
+test "@At-compute" {
+    const source_code = "@key = @[value]";
+
+    const expected = [_]Token{
+        .{ .type = TokenType.Operator, .value = "@" },
+        .{ .type = TokenType.Identifier, .value = "key" },
+        .{ .type = TokenType.Operator, .value = "=" },
+        .{ .type = TokenType.Operator, .value = "@" },
+        .{ .type = TokenType.Delimiter, .value = "[" },
+        .{ .type = TokenType.Identifier, .value = "value" },
+        .{ .type = TokenType.Delimiter, .value = "]" },
+    };
+
     try expectTokens(source_code, &expected);
 }
 
