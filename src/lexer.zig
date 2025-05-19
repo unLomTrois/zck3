@@ -16,6 +16,7 @@ pub const Token = struct {
 };
 
 // TODO: apply iterator pattern to make it more efficient (allocation-free)
+// TODO: rewrite to a Finite State Machine
 pub const Lexer = struct {
     source: []const u8,
     pos: usize,
