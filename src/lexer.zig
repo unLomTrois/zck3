@@ -238,3 +238,11 @@ test "Comments" {
         .identifier, .equal, .identifier,
     });
 }
+
+test "Token.getValue" {
+    const source = "key = value";
+    var lexer = Lexer.init(source);
+    try std.testing.expectEqualStrings("key", lexer.next().getValue(source));
+    try std.testing.expectEqualStrings("=", lexer.next().getValue(source));
+    try std.testing.expectEqualStrings("value", lexer.next().getValue(source));
+}
