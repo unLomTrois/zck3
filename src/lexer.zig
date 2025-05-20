@@ -36,7 +36,8 @@ pub const Lexer = struct {
     pub fn init(source_code: []const u8) Lexer {
         return Lexer{
             .source = source_code,
-            .pos = 0,
+            // Skip the UTF-8 BOM if present.
+            .pos = if (std.mem.startsWith(u8, source_code, "\xEF\xBB\xBF")) 3 else 0,
         };
     }
 
@@ -155,6 +156,13 @@ fn testTokenize(source_code: []const u8, expected: []const TokenType) !void {
     // Last token should always be EOF
     const last_token = lexer.next();
     try std.testing.expectEqual(TokenType.eof, last_token.type);
+}
+
+test "UTF-8 BOM" {
+    const source = "\xEF\xBB\xBFkey = value";
+    try testTokenize(source, &.{
+        .identifier, .equal, .identifier,
+    });
 }
 
 test "Numbers" {

@@ -1,5 +1,7 @@
 const std = @import("std");
 
+// TODO: remove because the lexer now handles this.
+
 /// Returns the slice with a leading UTF-8 BOM (EF BB BF) stripped off.
 /// If there is no BOM the original slice is returned unchanged.
 pub inline fn stripUtf8Bom(bytes: []const u8) []const u8 {
