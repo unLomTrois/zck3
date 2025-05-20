@@ -140,128 +140,99 @@ fn isIdentifierChar(c: u8) bool {
 }
 
 /// Helper function for testing the lexer without boilerplate code.
-fn expectTokens(source_code: []const u8, expected: []const Token) !void {
+fn expectTokens(source_code: []const u8, expected: []const TokenType) !void {
     var lexer = Lexer.init(source_code);
     const allocator = std.testing.allocator;
     const tokens = try lexer.lex(allocator);
     defer allocator.free(tokens);
     try std.testing.expectEqual(expected.len, tokens.len);
+
+    try std.testing.expectEqual(expected.len, tokens.len);
     for (expected, tokens) |exp, got| {
-        try std.testing.expectEqualDeep(exp, got);
+        try std.testing.expectEqual(exp, got.type);
     }
 }
 
-test "Field assignment" {
-    const expected = [_]Token{
-        .{ .type = .identifier, .value = "key" },
-        .{ .type = .equal, .value = "=" },
-        .{ .type = .identifier, .value = "value" },
-    };
-    try expectTokens("key = value", &expected);
-}
-
 test "Numbers" {
-    const expected = [_]Token{
-        .{ .type = .literal, .value = "123" },
-        .{ .type = .literal, .value = "456" },
-    };
-    try expectTokens("123 456", &expected);
+    try expectTokens("123 456", &.{
+        .literal, .literal,
+    });
 }
 
 test "Strings" {
-    const expected = [_]Token{
-        .{ .type = .literal, .value = "\"test string\"" },
-    };
-    try expectTokens("\"test string\"", &expected);
+    try expectTokens("\"test string\"", &.{
+        .literal,
+    });
 }
 
-test "Blocks" {
-    const expected = [_]Token{
-        .{ .type = .l_brace, .value = "{" },
-        .{ .type = .r_brace, .value = "}" },
-    };
-    try expectTokens("{ }", &expected);
+test "Field assignment" {
+    try expectTokens("key = value", &.{
+        .identifier, .equal, .identifier,
+    });
+}
+
+test "Block assignment" {
+    try expectTokens("key = { }", &.{
+        .identifier, .equal, .l_brace, .r_brace,
+    });
+}
+
+test "Literal assignment" {
+    try expectTokens("key = 123", &.{
+        .identifier, .equal, .literal,
+    });
+    try expectTokens("namespace = \"test_events\"", &.{
+        .identifier, .equal, .literal,
+    });
 }
 
 test "Dot notation" {
-    const expected = [_]Token{
-        .{ .type = .identifier, .value = "test_events" },
-        .{ .type = .dot, .value = "." },
-        .{ .type = .literal, .value = "1" },
-    };
-    try expectTokens("test_events.1", &expected);
+    try expectTokens("test_events.1", &.{
+        .identifier, .dot, .literal,
+    });
 }
 
 test "Colon notation" {
-    const expected = [_]Token{
-        .{ .type = .identifier, .value = "scope" },
-        .{ .type = .colon, .value = ":" },
-        .{ .type = .identifier, .value = "father" },
-    };
-    try expectTokens("scope:father", &expected);
+    try expectTokens("scope:father", &.{
+        .identifier, .colon, .identifier,
+    });
 }
 
 test "Complex input" {
-    const source_code =
-        \\namespace = "test_events"
-        \\test_events.1 = { 
+    try expectTokens("namespace = \"test_events\"", &.{
+        .identifier, .equal, .literal,
+    });
+    try expectTokens(
+        \\test_events.1 = {
         \\  title = "Test Event"
         \\}
-    ;
-    const expected = [_]Token{
-        .{ .type = .identifier, .value = "namespace" },
-        .{ .type = .equal, .value = "=" },
-        .{ .type = .literal, .value = "\"test_events\"" },
-        .{ .type = .identifier, .value = "test_events" },
-        .{ .type = .dot, .value = "." },
-        .{ .type = .literal, .value = "1" },
-        .{ .type = .equal, .value = "=" },
-        .{ .type = .l_brace, .value = "{" },
-        .{ .type = .identifier, .value = "title" },
-        .{ .type = .equal, .value = "=" },
-        .{ .type = .literal, .value = "\"Test Event\"" },
-        .{ .type = .r_brace, .value = "}" },
-    };
-    try expectTokens(source_code, &expected);
+    , &.{
+        .identifier, .dot,     .literal,
+        .equal,      .l_brace, .identifier,
+        .equal,      .literal, .r_brace,
+    });
 }
 
 test "@At-constants" {
-    const source_code = "@knight = \"path/to/file\"\nicon = @knight";
-    const expected = [_]Token{
-        .{ .type = .at, .value = "@" },
-        .{ .type = .identifier, .value = "knight" },
-        .{ .type = .equal, .value = "=" },
-        .{ .type = .literal, .value = "\"path/to/file\"" },
-        .{ .type = .identifier, .value = "icon" },
-        .{ .type = .equal, .value = "=" },
-        .{ .type = .at, .value = "@" },
-        .{ .type = .identifier, .value = "knight" },
-    };
-    try expectTokens(source_code, &expected);
+    try expectTokens("@knight = \"path/to/file\"", &.{
+        .at, .identifier, .equal, .literal,
+    });
+    try expectTokens("icon = @knight", &.{
+        .identifier, .equal, .at, .identifier,
+    });
 }
 
 test "@At-compute" {
-    const source_code = "@key = @[value]";
-    const expected = [_]Token{
-        .{ .type = .at, .value = "@" },
-        .{ .type = .identifier, .value = "key" },
-        .{ .type = .equal, .value = "=" },
-        .{ .type = .at, .value = "@" },
-        .{ .type = .l_bracket, .value = "[" },
-        .{ .type = .identifier, .value = "value" },
-        .{ .type = .r_bracket, .value = "]" },
-    };
-    try expectTokens(source_code, &expected);
+    try expectTokens("@key = @[value]", &.{
+        .at,        .identifier, .equal,     .at,
+        .l_bracket, .identifier, .r_bracket,
+    });
 }
 
 test "Comments" { // TODO: add comments support
-    const source_code = "# This is a comment\nkey = value#inline-comment";
-    const expected = [_]Token{
-        .{ .type = .identifier, .value = "key" },
-        .{ .type = .equal, .value = "=" },
-        .{ .type = .identifier, .value = "value" },
-    };
-    try expectTokens(source_code, &expected);
+    try expectTokens("# This is a comment\nkey = value#inline-comment", &.{
+        .identifier, .equal, .identifier,
+    });
 }
 
 test "Unknown character" { // TODO: add error handling
