@@ -1,28 +1,28 @@
 const std = @import("std");
 
-pub const TokenType = enum {
-    keyword,
-    identifier,
-    literal_number,
-    literal_string,
-    // Operators
-    equal, // =
-    dot, // .
-    colon, // :
-    at, // @
-    // Delimiters
-    l_brace, // {
-    r_brace, // }
-    l_bracket, // [
-    r_bracket, // ]
-    comment,
-    eof,
-};
-
 pub const Token = struct {
-    type: TokenType,
+    tag: Tag,
     start: usize, // Start position in source
     end: usize, // End position in source
+
+    pub const Tag = enum {
+        keyword,
+        identifier,
+        literal_number,
+        literal_string,
+        // Operators
+        equal, // =
+        dot, // .
+        colon, // :
+        at, // @
+        // Delimiters
+        l_brace, // {
+        r_brace, // }
+        l_bracket, // [
+        r_bracket, // ]
+        comment,
+        eof,
+    };
 
     pub fn getValue(self: Token, source: []const u8) []const u8 {
         return source[self.start..self.end];
@@ -45,7 +45,7 @@ pub const Lexer = struct {
         self.skipWhitespace();
         if (self.isAtEnd()) {
             return Token{
-                .type = .eof,
+                .tag = .eof,
                 .start = self.pos,
                 .end = self.pos,
             };
@@ -54,7 +54,7 @@ pub const Lexer = struct {
         const start_pos = self.pos;
         const c = self.advance();
 
-        const token_type: TokenType = switch (c) {
+        const token_type: Token.Tag = switch (c) {
             'a'...'z', 'A'...'Z', '_' => self.lexIdentifier(),
             '"' => self.lexString() catch .eof, // Return EOF on error for now
             '=' => .equal,
@@ -78,7 +78,7 @@ pub const Lexer = struct {
         };
 
         return Token{
-            .type = token_type,
+            .tag = token_type,
             .start = start_pos,
             .end = self.pos,
         };
@@ -100,21 +100,21 @@ pub const Lexer = struct {
         return self.buffer[self.pos];
     }
 
-    fn lexIdentifier(self: *Lexer) TokenType {
+    fn lexIdentifier(self: *Lexer) Token.Tag {
         while (isIdentifierChar(self.peek())) {
             _ = self.advance();
         }
         return .identifier;
     }
 
-    fn lexNumber(self: *Lexer) TokenType {
+    fn lexNumber(self: *Lexer) Token.Tag {
         while (std.ascii.isDigit(self.peek())) {
             _ = self.advance();
         }
         return .literal_number;
     }
 
-    fn lexString(self: *Lexer) !TokenType {
+    fn lexString(self: *Lexer) !Token.Tag {
         while (self.peek() != '"' and !self.isAtEnd()) {
             _ = self.advance();
         }
@@ -145,17 +145,17 @@ fn isIdentifierChar(c: u8) bool {
 }
 
 /// Helper function for testing the lexer without boilerplate code.
-fn testTokenize(source_code: []const u8, expected: []const TokenType) !void {
+fn testTokenize(source_code: []const u8, expected: []const Token.Tag) !void {
     var lexer = Lexer.init(source_code);
 
     for (expected) |expected_token_type| {
         const token = lexer.next();
-        try std.testing.expectEqual(expected_token_type, token.type);
+        try std.testing.expectEqual(expected_token_type, token.tag);
     }
 
     // Last token should always be EOF
     const last_token = lexer.next();
-    try std.testing.expectEqual(TokenType.eof, last_token.type);
+    try std.testing.expectEqual(.eof, last_token.tag);
 }
 
 test "UTF-8 BOM" {
