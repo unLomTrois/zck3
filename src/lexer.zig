@@ -3,7 +3,8 @@ const std = @import("std");
 pub const TokenType = enum {
     keyword,
     identifier,
-    literal,
+    literal_number,
+    literal_string,
     // Operators
     equal, // =
     dot, // .
@@ -106,7 +107,7 @@ pub const Lexer = struct {
         while (std.ascii.isDigit(self.peek())) {
             _ = self.advance();
         }
-        return .literal;
+        return .literal_number;
     }
 
     fn lexString(self: *Lexer) !TokenType {
@@ -119,7 +120,7 @@ pub const Lexer = struct {
         }
         _ = self.advance(); // consume closing quote
 
-        return .literal;
+        return .literal_string;
     }
 
     fn skipWhitespace(self: *Lexer) void {
@@ -155,13 +156,13 @@ fn expectTokens(source_code: []const u8, expected: []const TokenType) !void {
 
 test "Numbers" {
     try expectTokens("123 456", &.{
-        .literal, .literal,
+        .literal_number, .literal_number,
     });
 }
 
 test "Strings" {
     try expectTokens("\"test string\"", &.{
-        .literal,
+        .literal_string,
     });
 }
 
@@ -179,16 +180,16 @@ test "Block assignment" {
 
 test "Literal assignment" {
     try expectTokens("key = 123", &.{
-        .identifier, .equal, .literal,
+        .identifier, .equal, .literal_number,
     });
     try expectTokens("namespace = \"test_events\"", &.{
-        .identifier, .equal, .literal,
+        .identifier, .equal, .literal_string,
     });
 }
 
 test "Dot notation" {
     try expectTokens("test_events.1", &.{
-        .identifier, .dot, .literal,
+        .identifier, .dot, .literal_number,
     });
 }
 
@@ -200,22 +201,22 @@ test "Colon notation" {
 
 test "Complex input" {
     try expectTokens("namespace = \"test_events\"", &.{
-        .identifier, .equal, .literal,
+        .identifier, .equal, .literal_string,
     });
     try expectTokens(
         \\test_events.1 = {
         \\  title = "Test Event"
         \\}
     , &.{
-        .identifier, .dot,     .literal,
-        .equal,      .l_brace, .identifier,
-        .equal,      .literal, .r_brace,
+        .identifier, .dot,            .literal_number,
+        .equal,      .l_brace,        .identifier,
+        .equal,      .literal_string, .r_brace,
     });
 }
 
 test "@At-constants" {
     try expectTokens("@knight = \"path/to/file\"", &.{
-        .at, .identifier, .equal, .literal,
+        .at, .identifier, .equal, .literal_string,
     });
     try expectTokens("icon = @knight", &.{
         .identifier, .equal, .at, .identifier,
