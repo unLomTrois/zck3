@@ -230,7 +230,7 @@ test "@At-compute" {
     });
 }
 
-test "Comments" { // TODO: add comments support
+test "Comments" {
     try expectTokens("# This is a comment\nkey = value#inline-comment", &.{
         .identifier, .equal, .identifier,
     });
