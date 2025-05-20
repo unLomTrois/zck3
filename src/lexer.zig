@@ -30,14 +30,14 @@ pub const Token = struct {
 };
 
 pub const Lexer = struct {
-    source: []const u8,
+    buffer: []const u8,
     pos: usize,
 
-    pub fn init(source_code: []const u8) Lexer {
+    pub fn init(buffer: []const u8) Lexer {
         return Lexer{
-            .source = source_code,
+            .buffer = buffer,
             // Skip the UTF-8 BOM if present.
-            .pos = if (std.mem.startsWith(u8, source_code, "\xEF\xBB\xBF")) 3 else 0,
+            .pos = if (std.mem.startsWith(u8, buffer, "\xEF\xBB\xBF")) 3 else 0,
         };
     }
 
@@ -85,19 +85,19 @@ pub const Lexer = struct {
     }
 
     inline fn isAtEnd(self: *Lexer) bool {
-        return self.pos >= self.source.len;
+        return self.pos >= self.buffer.len;
     }
 
     fn advance(self: *Lexer) u8 {
         defer self.pos += 1;
-        return self.source[self.pos];
+        return self.buffer[self.pos];
     }
 
     fn peek(self: *Lexer) u8 {
         if (self.isAtEnd()) {
             return 0;
         }
-        return self.source[self.pos];
+        return self.buffer[self.pos];
     }
 
     fn lexIdentifier(self: *Lexer) TokenType {
