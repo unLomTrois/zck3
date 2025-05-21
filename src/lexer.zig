@@ -175,8 +175,9 @@ pub const Lexer = struct {
 
     fn advance(self: *Lexer) u8 {
         std.debug.assert(self.pos < self.buffer.len);
-        defer self.pos += 1;
-        return self.buffer[self.pos];
+        const c = self.buffer[self.pos];
+        self.pos += 1;
+        return c;
     }
 
     fn peek(self: *Lexer) u8 {
