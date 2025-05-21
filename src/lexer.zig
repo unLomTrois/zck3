@@ -314,15 +314,18 @@ test "Complex input" {
 }
 
 test "@At-constants" {
+    // AST: ConstantDeclaration(name, LiteralString)
     try testTokenize("@knight = \"path/to/file\"", &.{
         .at, .identifier, .equal, .literal_string,
     });
+    // AST: field with AtConstantReference value
     try testTokenize("icon = @knight", &.{
         .identifier, .equal, .at, .identifier,
     });
 }
 
 test "@At-compute" {
+    // AST: ConstantDeclaration(name, AtExpression(Identifier))
     try testTokenize("@key = @[value]", &.{
         .at,        .identifier, .equal,     .at,
         .l_bracket, .identifier, .r_bracket,
@@ -330,6 +333,7 @@ test "@At-compute" {
 }
 
 test "@At-compute with arithmetic" {
+    // AST: ConstantDeclaration(name, AtExpression(BinaryOperation))
     try testTokenize("@total = @[1+2]", &.{
         .at,        .identifier,     .equal, .at,
         .l_bracket, .literal_number, .plus,  .literal_number,
