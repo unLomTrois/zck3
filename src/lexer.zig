@@ -1,5 +1,8 @@
 const std = @import("std");
 
+// TODO: look at other tokenizers for inspiration how to handle errors
+// TODO: for now, maybe add invalid token type as Zig tokenizer does
+
 pub const Token = struct {
     tag: Tag,
     start: usize, // Start position in source
@@ -10,17 +13,40 @@ pub const Token = struct {
         identifier,
         literal_number,
         literal_string,
-        // Operators
-        equal, // =
-        dot, // .
-        colon, // :
-        at, // @
+
         // Delimiters
         l_brace, // {
         r_brace, // }
         l_bracket, // [
         r_bracket, // ]
+
+        // TODO: Arithmetic operators
+        plus, // +
+        minus, // -
+        star, // *
+        slash, // /
+
+        // TODO: Comparison operators
+        greater_than, // >
+        greater_equal, // >=
+        less_than, // <
+        less_equal, // <=
+
+        // Assignment operators
+        equal, // =
+
+        // TODO: Equality operators
+        equal_equal, // ==
+        bang_equal, // !=
+        question_equal, // ?=
+
+        // Scope resolution operators
+        dot, // .
+        colon, // :
+        at, // @
+
         comment,
+        invalid, // Used for lexical errors
         eof,
     };
 
@@ -54,9 +80,21 @@ pub const Lexer = struct {
         const start_pos = self.pos;
         const c = self.advance();
 
-        const token_type: Token.Tag = switch (c) {
+        const tag: Token.Tag = switch (c) {
             'a'...'z', 'A'...'Z', '_' => self.lexIdentifier(),
-            '"' => self.lexString() catch .eof, // Return EOF on error for now
+            '"' => self.lexString() catch |err| {
+                switch (err) {
+                    error.UnterminatedString => {
+                        // Return invalid token for unterminated string
+                        return Token{
+                            .tag = .invalid,
+                            .start = start_pos,
+                            .end = self.pos,
+                        };
+                    },
+                    else => unreachable,
+                }
+            },
             '=' => .equal,
             '.' => .dot,
             ':' => .colon,
@@ -71,14 +109,18 @@ pub const Lexer = struct {
                 return self.next(); // Skip comment and return next token
             },
             else => {
-                // Skip unknown characters for now and return next token
-                std.log.err("Unknown character: {c} at {}", .{ c, self.pos - 1 });
-                return self.next();
+                // std.log.err("Unknown character: {c} at {}", .{ c, self.pos - 1 });
+                // Return invalid token for unknown character
+                return Token{
+                    .tag = .invalid,
+                    .start = start_pos,
+                    .end = self.pos,
+                };
             },
         };
 
         return Token{
-            .tag = token_type,
+            .tag = tag,
             .start = start_pos,
             .end = self.pos,
         };
@@ -89,6 +131,7 @@ pub const Lexer = struct {
     }
 
     fn advance(self: *Lexer) u8 {
+        std.debug.assert(self.pos < self.buffer.len);
         defer self.pos += 1;
         return self.buffer[self.pos];
     }
@@ -114,12 +157,12 @@ pub const Lexer = struct {
         return .literal_number;
     }
 
-    fn lexString(self: *Lexer) !Token.Tag {
+    fn lexString(self: *Lexer) error{UnterminatedString}!Token.Tag {
         while (self.peek() != '"' and !self.isAtEnd()) {
             _ = self.advance();
         }
         if (self.isAtEnd()) {
-            std.log.err("Unterminated string at {}", .{self.pos});
+            //std.log.err("Unterminated string at {}", .{self.pos});
             return error.UnterminatedString;
         }
         _ = self.advance(); // consume closing quote
@@ -253,4 +296,16 @@ test "Token.getValue" {
     try std.testing.expectEqualStrings("key", lexer.next().getValue(source));
     try std.testing.expectEqualStrings("=", lexer.next().getValue(source));
     try std.testing.expectEqualStrings("value", lexer.next().getValue(source));
+}
+
+test "Invalid characters" {
+    try testTokenize("key $= value", &.{
+        .identifier, .invalid, .equal, .identifier,
+    });
+}
+
+test "Unterminated string" {
+    try testTokenize("key = \"unterminated", &.{
+        .identifier, .equal, .invalid,
+    });
 }
