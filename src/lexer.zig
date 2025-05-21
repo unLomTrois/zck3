@@ -55,6 +55,7 @@ pub const Token = struct {
     }
 };
 
+// TODO: think about to rewrite as a finite state machine
 pub const Lexer = struct {
     buffer: []const u8,
     pos: usize,
