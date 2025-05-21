@@ -293,8 +293,9 @@ test "Dot notation" {
 }
 
 test "Colon notation" {
+    // TODO: "scope" probably needs to be a keyword
     try testTokenize("scope:father", &.{
-        .identifier, .colon, .identifier,
+        .keyword, .colon, .identifier,
     });
 }
 
