@@ -37,7 +37,7 @@ pub const Token = struct {
 
         // Equality operators
         equal_equal, // ==
-        bang_equal, // !=
+        not_equal, // !=
         question_equal, // ?=
 
         // Scope resolution operators
@@ -107,7 +107,7 @@ pub const Lexer = struct {
             '!' => blk: {
                 if (self.peek() == '=') {
                     _ = self.advance(); // consume '='
-                    break :blk .bang_equal;
+                    break :blk .not_equal;
                 } else {
                     break :blk .invalid; // Lone '!' is invalid
                 }
@@ -387,7 +387,7 @@ test "Comparison and Equality Operators" {
         .identifier, .equal_equal, .identifier,
     });
     try testTokenize("val1 != val2", &.{
-        .identifier, .bang_equal, .identifier,
+        .identifier, .not_equal, .identifier,
     });
     try testTokenize("check ?= default", &.{
         .identifier, .question_equal, .identifier,
