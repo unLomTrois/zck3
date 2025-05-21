@@ -20,11 +20,11 @@ pub const Token = struct {
         l_bracket, // [
         r_bracket, // ]
 
-        // TODO: Arithmetic operators
+        // Arithmetic operators
         plus, // +
         minus, // -
-        star, // *
-        slash, // /
+        multiply, // *
+        divide, // /
 
         // TODO: Comparison operators
         greater_than, // >
@@ -103,6 +103,10 @@ pub const Lexer = struct {
             '}' => .r_brace,
             '[' => .l_bracket,
             ']' => .r_bracket,
+            '+' => .plus,
+            '-' => .minus,
+            '*' => .multiply,
+            '/' => .divide,
             '0'...'9' => self.lexNumber(),
             '#' => {
                 self.skipComment();
@@ -281,6 +285,21 @@ test "@At-compute" {
     try testTokenize("@key = @[value]", &.{
         .at,        .identifier, .equal,     .at,
         .l_bracket, .identifier, .r_bracket,
+    });
+}
+
+test "@At-compute with arithmetic" {
+    try testTokenize("@total = @[1+2]", &.{
+        .at,        .identifier,     .equal, .at,
+        .l_bracket, .literal_number, .plus,  .literal_number,
+        .r_bracket,
+    });
+
+    try testTokenize("@result = @[10-5*2/1]", &.{
+        .at,        .identifier,     .equal,  .at,
+        .l_bracket, .literal_number, .minus,  .literal_number,
+        .multiply,  .literal_number, .divide, .literal_number,
+        .r_bracket,
     });
 }
 
