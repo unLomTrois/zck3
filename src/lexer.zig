@@ -272,8 +272,12 @@ test "Field assignment" {
 }
 
 test "Block assignment" {
-    try testTokenize("key = { }", &.{
-        .identifier, .equal, .l_brace, .r_brace,
+    try testTokenize("key = { key2 = value }", &.{
+        .identifier, .equal, .l_brace, .identifier, .equal, .identifier, .r_brace,
+    });
+
+    try testTokenize("key = { r g b }", &.{
+        .identifier, .equal, .l_brace, .identifier, .identifier, .identifier, .r_brace,
     });
 }
 
