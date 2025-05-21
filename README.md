@@ -20,6 +20,11 @@ TODO
 - [ ] Documentation
 - [ ] LSP
 
+## Implementation Notes
+- ParadoxScript grammar contains constructs (like ambiguous block syntax) that cannot be parsed with LL(1) techniques
+- The parser implementation uses LR parsing to handle these grammatical structures correctly
+- This enables proper distinction between field blocks (`{ key = value }`) and value blocks (`{ r g b }`)
+
 ## Usage
 
 ```
