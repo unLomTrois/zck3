@@ -26,7 +26,7 @@ pub const Token = struct {
         multiply, // *
         divide, // /
 
-        // TODO: Comparison operators
+        // Comparison operators
         greater_than, // >
         greater_equal, // >=
         less_than, // <
@@ -35,7 +35,7 @@ pub const Token = struct {
         // Assignment operators
         equal, // =
 
-        // TODO: Equality operators
+        // Equality operators
         equal_equal, // ==
         bang_equal, // !=
         question_equal, // ?=
@@ -95,7 +95,46 @@ pub const Lexer = struct {
                     else => unreachable,
                 }
             },
-            '=' => .equal,
+            '=' => blk: {
+                if (self.peek() == '=') {
+                    _ = self.advance(); // consume the second '='
+                    break :blk .equal_equal;
+                } else {
+                    break :blk .equal; // just a single '='
+                }
+            },
+            '!' => blk: {
+                if (self.peek() == '=') {
+                    _ = self.advance(); // consume '='
+                    break :blk .bang_equal;
+                } else {
+                    break :blk .invalid; // Lone '!' is invalid
+                }
+            },
+            '>' => blk: {
+                if (self.peek() == '=') {
+                    _ = self.advance(); // consume '='
+                    break :blk .greater_equal;
+                } else {
+                    break :blk .greater_than;
+                }
+            },
+            '<' => blk: {
+                if (self.peek() == '=') {
+                    _ = self.advance(); // consume '='
+                    break :blk .less_equal;
+                } else {
+                    break :blk .less_than;
+                }
+            },
+            '?' => blk: {
+                if (self.peek() == '=') {
+                    _ = self.advance(); // consume '='
+                    break :blk .question_equal;
+                } else {
+                    break :blk .invalid; // Lone '?' is invalid
+                }
+            },
             '.' => .dot,
             ':' => .colon,
             '@' => .at,
@@ -326,5 +365,41 @@ test "Invalid characters" {
 test "Unterminated string" {
     try testTokenize("key = \"unterminated", &.{
         .identifier, .equal, .invalid,
+    });
+}
+
+test "Comparison and Equality Operators" {
+    try testTokenize("a > b", &.{
+        .identifier, .greater_than, .identifier,
+    });
+    try testTokenize("a >= b", &.{
+        .identifier, .greater_equal, .identifier,
+    });
+    try testTokenize("x < y", &.{
+        .identifier, .less_than, .identifier,
+    });
+    try testTokenize("x <= y", &.{
+        .identifier, .less_equal, .identifier,
+    });
+    try testTokenize("val1 == val2", &.{
+        .identifier, .equal_equal, .identifier,
+    });
+    try testTokenize("val1 != val2", &.{
+        .identifier, .bang_equal, .identifier,
+    });
+    try testTokenize("check ?= default", &.{
+        .identifier, .question_equal, .identifier,
+    });
+    try testTokenize("a!b", &.{
+        .identifier, .invalid, .identifier, // Lone ! is invalid
+    });
+    try testTokenize("a?b", &.{
+        .identifier, .invalid, .identifier, // Lone ? is invalid
+    });
+    try testTokenize("! cmd", &.{
+        .invalid, .identifier, // Lone ! is invalid
+    });
+    try testTokenize("? arg", &.{
+        .invalid, .identifier, // Lone ? is invalid
     });
 }
