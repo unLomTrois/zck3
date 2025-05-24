@@ -8,12 +8,38 @@ pub const Token = struct {
     start: usize, // Start position in source
     end: usize, // End position in source
 
+    pub const keywords = std.StaticStringMap(Tag).initComptime(.{
+        .{ "yes", .literal_boolean },
+        .{ "no", .literal_boolean },
+        .{ "scope", .keyword_scope },
+        .{ "root", .keyword_root },
+        .{ "prev", .keyword_prev },
+        .{ "this", .keyword_this },
+        .{ "scripted_effect", .keyword_scripted_effect },
+        .{ "scripted_trigger", .keyword_scripted_trigger },
+        .{ "namespace", .keyword_namespace },
+    });
+
+    pub fn getKeyword(bytes: []const u8) ?Tag {
+        return keywords.get(bytes);
+    }
+
     pub const Tag = enum {
-        keyword,
         identifier,
+
+        // Keywords
+        keyword_scope,
+        keyword_root,
+        keyword_prev,
+        keyword_this,
+        keyword_scripted_effect,
+        keyword_scripted_trigger,
+        keyword_namespace,
+
+        // Literals
         literal_number,
         literal_string,
-
+        literal_boolean,
         // Delimiters
         l_brace, // {
         r_brace, // }
@@ -189,9 +215,18 @@ pub const Lexer = struct {
     }
 
     fn lexIdentifier(self: *Lexer) Token.Tag {
+        const start = self.pos - 1; // We've already consumed the first character
+
         while (isIdentifierChar(self.peek())) {
             _ = self.advance();
         }
+
+        // Check if the identifier is a special token
+        const identifier = self.buffer[start..self.pos];
+        if (Token.getKeyword(identifier)) |tag| {
+            return tag;
+        }
+
         return .identifier;
     }
 
@@ -286,7 +321,7 @@ test "Literal assignment" {
         .identifier, .equal, .literal_number,
     });
     try testTokenize("namespace = \"test_events\"", &.{
-        .identifier, .equal, .literal_string,
+        .keyword_namespace, .equal, .literal_string,
     });
 }
 
@@ -299,13 +334,13 @@ test "Dot notation" {
 test "Colon notation" {
     // TODO: "scope" probably needs to be a keyword
     try testTokenize("scope:father", &.{
-        .keyword, .colon, .identifier,
+        .keyword_scope, .colon, .identifier,
     });
 }
 
 test "Complex input" {
     try testTokenize("namespace = \"test_events\"", &.{
-        .identifier, .equal, .literal_string,
+        .keyword_namespace, .equal, .literal_string,
     });
     try testTokenize(
         \\test_events.1 = {
@@ -412,5 +447,41 @@ test "Comparison and Equality Operators" {
     });
     try testTokenize("? arg", &.{
         .invalid, .identifier, // Lone ? is invalid
+    });
+}
+
+test "Boolean literals" {
+    try testTokenize("yes", &.{
+        .literal_boolean,
+    });
+    try testTokenize("no", &.{
+        .literal_boolean,
+    });
+    try testTokenize("key = yes", &.{
+        .identifier, .equal, .literal_boolean,
+    });
+    try testTokenize("key = no", &.{
+        .identifier, .equal, .literal_boolean,
+    });
+}
+
+test "Keywords" {
+    try testTokenize("scope:father", &.{
+        .keyword_scope, .colon, .identifier,
+    });
+    try testTokenize("root.father", &.{
+        .keyword_root, .dot, .identifier,
+    });
+    try testTokenize("prev.culture", &.{
+        .keyword_prev, .dot, .identifier,
+    });
+    try testTokenize("scripted_effect add_gold_effect = {", &.{
+        .keyword_scripted_effect, .identifier, .equal, .l_brace,
+    });
+    try testTokenize("scripted_trigger has_enough_gold = {", &.{
+        .keyword_scripted_trigger, .identifier, .equal, .l_brace,
+    });
+    try testTokenize("namespace = \"test_events\"", &.{
+        .keyword_namespace, .equal, .literal_string,
     });
 }
