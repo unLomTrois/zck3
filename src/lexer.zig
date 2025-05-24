@@ -9,12 +9,11 @@ pub const Token = struct {
     end: usize, // End position in source
 
     pub const keywords = std.StaticStringMap(Tag).initComptime(.{
+        // Boolean literals (special values, not identifiers)
         .{ "yes", .literal_boolean },
         .{ "no", .literal_boolean },
-        .{ "scope", .keyword_scope },
-        .{ "root", .keyword_root },
-        .{ "prev", .keyword_prev },
-        .{ "this", .keyword_this },
+
+        // Language constructs only
         .{ "scripted_effect", .keyword_scripted_effect },
         .{ "scripted_trigger", .keyword_scripted_trigger },
         .{ "namespace", .keyword_namespace },
@@ -27,11 +26,7 @@ pub const Token = struct {
     pub const Tag = enum {
         identifier,
 
-        // Keywords
-        keyword_scope,
-        keyword_root,
-        keyword_prev,
-        keyword_this,
+        // Keywords (language constructs only)
         keyword_scripted_effect,
         keyword_scripted_trigger,
         keyword_namespace,
@@ -332,9 +327,8 @@ test "Dot notation" {
 }
 
 test "Colon notation" {
-    // TODO: "scope" probably needs to be a keyword
     try testTokenize("scope:father", &.{
-        .keyword_scope, .colon, .identifier,
+        .identifier, .colon, .identifier,
     });
 }
 
@@ -465,16 +459,19 @@ test "Boolean literals" {
     });
 }
 
-test "Keywords" {
+test "Language constructs and event targets" {
+    // Event targets should be parsed as identifiers
     try testTokenize("scope:father", &.{
-        .keyword_scope, .colon, .identifier,
+        .identifier, .colon, .identifier,
     });
     try testTokenize("root.father", &.{
-        .keyword_root, .dot, .identifier,
+        .identifier, .dot, .identifier,
     });
     try testTokenize("prev.culture", &.{
-        .keyword_prev, .dot, .identifier,
+        .identifier, .dot, .identifier,
     });
+
+    // Language constructs should be keywords
     try testTokenize("scripted_effect add_gold_effect = {", &.{
         .keyword_scripted_effect, .identifier, .equal, .l_brace,
     });
