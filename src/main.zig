@@ -17,7 +17,7 @@ pub fn main() !void {
 
     const stdout = std.io.getStdOut().writer();
 
-    const filepath = "hello_world.txt";
+    const filepath = "./examples/hello_world.txt";
     const file = try openFile(filepath);
     defer file.close();
 
@@ -26,10 +26,9 @@ pub fn main() !void {
     std.debug.assert(std.unicode.utf8ValidateSlice(bytes));
 
     var lexer = Lexer.init(bytes);
-    const tokens = try lexer.lex(allocator);
-    defer allocator.free(tokens);
-
-    for (tokens) |token| {
-        try stdout.print("{s}: {s}\n", .{ @tagName(token.type), token.value });
+    while (true) {
+        const token = lexer.next();
+        if (token.tag == .eof) break;
+        try stdout.print("{s}, {s}\n", .{ @tagName(token.tag), token.getValue(bytes) });
     }
 }
