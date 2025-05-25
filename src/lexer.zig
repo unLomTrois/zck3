@@ -89,14 +89,10 @@ pub const Lexer = struct {
         };
     }
 
-    pub fn next(self: *Lexer) Token {
+    pub fn next(self: *Lexer) ?Token {
         self.skipWhitespace();
         if (self.isAtEnd()) {
-            return Token{
-                .tag = .eof,
-                .start = self.pos,
-                .end = self.pos,
-            };
+            return null;
         }
 
         const start_pos = self.pos;
@@ -267,13 +263,13 @@ fn testTokenize(source_code: []const u8, expected: []const Token.Tag) !void {
     var lexer = Lexer.init(source_code);
 
     for (expected) |expected_token_type| {
-        const token = lexer.next();
+        const token = lexer.next() orelse unreachable;
         try std.testing.expectEqual(expected_token_type, token.tag);
     }
 
     // Last token should always be EOF
     const last_token = lexer.next();
-    try std.testing.expectEqual(.eof, last_token.tag);
+    try std.testing.expectEqual(null, last_token);
 }
 
 test "UTF-8 BOM" {
@@ -391,9 +387,11 @@ test "Comments" {
 test "Token.getValue" {
     const source = "key = value";
     var lexer = Lexer.init(source);
-    try std.testing.expectEqualStrings("key", lexer.next().getValue(source));
-    try std.testing.expectEqualStrings("=", lexer.next().getValue(source));
-    try std.testing.expectEqualStrings("value", lexer.next().getValue(source));
+    const expected = [_][]const u8{ "key", "=", "value" };
+    for (expected) |expected_token| {
+        const token = lexer.next() orelse unreachable;
+        try std.testing.expectEqualStrings(expected_token, token.getValue(source));
+    }
 }
 
 test "Invalid characters" {

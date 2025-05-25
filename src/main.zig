@@ -26,9 +26,7 @@ pub fn main() !void {
     std.debug.assert(std.unicode.utf8ValidateSlice(bytes));
 
     var lexer = Lexer.init(bytes);
-    while (true) {
-        const token = lexer.next();
-        if (token.tag == .eof) break;
+    while (lexer.next()) |token| {
         try stdout.print("{s}, {s}\n", .{ @tagName(token.tag), token.getValue(bytes) });
     }
 }
