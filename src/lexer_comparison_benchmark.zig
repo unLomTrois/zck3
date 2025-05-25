@@ -2,6 +2,8 @@ const std = @import("std");
 const original_lexer = @import("lexer.zig");
 const simd_lexer = @import("lexer_simd.zig");
 
+// TODO: rewrite because original_lexer is now returns nullable tokens and simd one doesn't
+
 const large_paradox_script =
     \\namespace = "ep3_powerful_families"
     \\
