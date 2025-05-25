@@ -3,7 +3,6 @@
 //! is to delete this file and start with root.zig instead.
 
 const std = @import("std");
-const bom = @import("bom.zig");
 const lexer_mod = @import("lexer.zig");
 const Lexer = lexer_mod.Lexer;
 
@@ -22,11 +21,9 @@ pub fn main() !void {
     const file = try openFile(filepath);
     defer file.close();
 
-    const raw_bytes = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-    defer allocator.free(raw_bytes);
-    std.debug.assert(std.unicode.utf8ValidateSlice(raw_bytes));
-
-    const bytes = bom.stripUtf8Bom(raw_bytes);
+    const bytes = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(bytes);
+    std.debug.assert(std.unicode.utf8ValidateSlice(bytes));
 
     var lexer = Lexer.init(bytes);
     const tokens = try lexer.lex(allocator);
