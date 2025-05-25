@@ -1,8 +1,5 @@
 const std = @import("std");
 
-// TODO: look at other tokenizers for inspiration how to handle errors
-// TODO: for now, maybe add invalid token type as Zig tokenizer does
-
 pub const Token = struct {
     tag: Tag,
     start: usize, // Start position in source

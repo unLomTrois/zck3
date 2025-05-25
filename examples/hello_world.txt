@@ -7,6 +7,6 @@ hello_world.1 = {
     option = {
         name = hello_world.1.a
 
-        debug_lod = "Hello World!"
+        debug_log = "Hello, world!"
     }
 }
