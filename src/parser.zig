@@ -12,6 +12,10 @@ const Block = struct {
     }
 
     pub fn deinit(self: *Block) void {
+        // Recursively deinit nested blocks
+        for (self.list.items) |*item| {
+            item.deinit();
+        }
         self.list.deinit();
     }
 };
@@ -27,6 +31,13 @@ const BlockItem = union(enum) {
     pub inline fn init_field(field: Field) BlockItem {
         return BlockItem{ .field = field };
     }
+
+    pub fn deinit(self: *BlockItem) void {
+        switch (self.*) {
+            .value => {}, // Tokens don't need cleanup
+            .field => |*field| field.deinit(),
+        }
+    }
 };
 
 const Field = struct {
@@ -36,6 +47,10 @@ const Field = struct {
 
     pub inline fn init(key: Token, comparator: Token, value: BV) Field {
         return Field{ .key = key, .comparator = comparator, .value = value };
+    }
+
+    pub fn deinit(self: *Field) void {
+        self.value.deinit();
     }
 };
 
@@ -49,6 +64,13 @@ const BV = union(enum) {
 
     pub inline fn init_value(value: Token) BV {
         return BV{ .value = value };
+    }
+
+    pub fn deinit(self: *BV) void {
+        switch (self.*) {
+            .block => |*block| block.deinit(),
+            .value => {}, // Tokens don't need cleanup
+        }
     }
 };
 
@@ -192,6 +214,35 @@ test "key = { }" {
         Token{ .tag = .identifier, .start = 0, .end = 3 },
         Token{ .tag = .equal, .start = 4, .end = 5 },
         BV.init_block(Block.init(std.testing.allocator)),
+    )));
+
+    try std.testing.expectEqualDeep(expected, ast);
+}
+
+test "key = { key = value }" {
+    const source = "key = { key = value }";
+
+    var lexer = Lexer.init(source);
+    var parser = Parser.init(std.testing.allocator, &lexer);
+
+    var ast = try parser.parse();
+    defer ast.deinit();
+
+    // Create the inner block: { key = value }
+    var inner_block = Block.init(std.testing.allocator);
+    try inner_block.list.append(BlockItem.init_field(Field.init(
+        Token{ .tag = .identifier, .start = 8, .end = 11 }, // "key" inside block
+        Token{ .tag = .equal, .start = 12, .end = 13 }, // "=" inside block
+        BV.init_value(Token{ .tag = .identifier, .start = 14, .end = 19 }), // "value"
+    )));
+
+    // Create the expected outer block
+    var expected = Block.init(std.testing.allocator);
+    defer expected.deinit();
+    try expected.list.append(BlockItem.init_field(Field.init(
+        Token{ .tag = .identifier, .start = 0, .end = 3 }, // outer "key"
+        Token{ .tag = .equal, .start = 4, .end = 5 }, // outer "="
+        BV.init_block(inner_block), // the block value
     )));
 
     try std.testing.expectEqualDeep(expected, ast);
