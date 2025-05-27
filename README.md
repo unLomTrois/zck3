@@ -9,10 +9,10 @@ This project aims to provide a fast and robust implementation of a ParadoxScript
 TODO
 
 ## TODO
-- [ ] Lexer
+- [x] Lexer
 - - [x] Basic syntax
-- - [ ] Computed values
-- - [ ] Keywords (effects, triggers, event_scopes, event_targets)
+- - [x] Computed values
+- - [x] Keywords (effects, triggers, event_scopes, event_targets)
 - [ ] Parser
 - [ ] AST generation
 - [ ] Error reporting
