@@ -24,11 +24,11 @@ const BlockItem = union(enum) {
     value: Token,
     field: Field,
 
-    pub inline fn init_token(token: Token) BlockItem {
+    pub inline fn from_token(token: Token) BlockItem {
         return BlockItem{ .value = token };
     }
 
-    pub inline fn init_field(field: Field) BlockItem {
+    pub inline fn from_field(field: Field) BlockItem {
         return BlockItem{ .field = field };
     }
 
@@ -58,11 +58,11 @@ const BV = union(enum) {
     block: Block,
     value: Token,
 
-    pub inline fn init_block(block: Block) BV {
+    pub inline fn from_block(block: Block) BV {
         return BV{ .block = block };
     }
 
-    pub inline fn init_value(value: Token) BV {
+    pub inline fn from_value(value: Token) BV {
         return BV{ .value = value };
     }
 
@@ -93,11 +93,11 @@ const Parser = struct {
         while (self.lexer.next()) |token| {
             switch (token.tag) {
                 .literal_number => {
-                    try block.list.append(BlockItem.init_token(token));
+                    try block.list.append(BlockItem.from_token(token));
                 },
                 .identifier => {
                     const field = try self.parse_field(token);
-                    try block.list.append(BlockItem.init_field(field));
+                    try block.list.append(BlockItem.from_field(field));
                 },
                 .r_brace => {
                     return block;
@@ -124,10 +124,10 @@ const Parser = struct {
         switch (token.tag) {
             .l_brace => {
                 const block = try self.parse_block();
-                return BV.init_block(block);
+                return BV.from_block(block);
             },
             .identifier => {
-                return BV.init_value(token);
+                return BV.from_value(token);
             },
             else => {
                 std.debug.print("expected {s}, got {s}\n", .{ @tagName(.identifier), @tagName(token.tag) });
@@ -172,7 +172,7 @@ test "block with one token (non standard grammar)" {
 
     var expected = Block.init(std.testing.allocator);
     defer expected.deinit();
-    try expected.list.append(BlockItem.init_token(
+    try expected.list.append(BlockItem.from_token(
         Token{ .tag = .literal_number, .start = 0, .end = 1 },
     ));
 
@@ -190,10 +190,10 @@ test "key = value" {
 
     var expected = Block.init(std.testing.allocator);
     defer expected.deinit();
-    try expected.list.append(BlockItem.init_field(Field.init(
+    try expected.list.append(BlockItem.from_field(Field.init(
         Token{ .tag = .identifier, .start = 0, .end = 3 },
         Token{ .tag = .equal, .start = 4, .end = 5 },
-        BV.init_value(Token{ .tag = .identifier, .start = 6, .end = 11 }),
+        BV.from_value(Token{ .tag = .identifier, .start = 6, .end = 11 }),
     )));
 
     try std.testing.expectEqualDeep(expected, ast);
@@ -210,10 +210,10 @@ test "key = { }" {
 
     var expected = Block.init(std.testing.allocator);
     defer expected.deinit();
-    try expected.list.append(BlockItem.init_field(Field.init(
+    try expected.list.append(BlockItem.from_field(Field.init(
         Token{ .tag = .identifier, .start = 0, .end = 3 },
         Token{ .tag = .equal, .start = 4, .end = 5 },
-        BV.init_block(Block.init(std.testing.allocator)),
+        BV.from_block(Block.init(std.testing.allocator)),
     )));
 
     try std.testing.expectEqualDeep(expected, ast);
@@ -230,19 +230,19 @@ test "key = { key = value }" {
 
     // Create the inner block: { key = value }
     var inner_block = Block.init(std.testing.allocator);
-    try inner_block.list.append(BlockItem.init_field(Field.init(
+    try inner_block.list.append(BlockItem.from_field(Field.init(
         Token{ .tag = .identifier, .start = 8, .end = 11 }, // "key" inside block
         Token{ .tag = .equal, .start = 12, .end = 13 }, // "=" inside block
-        BV.init_value(Token{ .tag = .identifier, .start = 14, .end = 19 }), // "value"
+        BV.from_value(Token{ .tag = .identifier, .start = 14, .end = 19 }), // "value"
     )));
 
     // Create the expected outer block
     var expected = Block.init(std.testing.allocator);
     defer expected.deinit();
-    try expected.list.append(BlockItem.init_field(Field.init(
+    try expected.list.append(BlockItem.from_field(Field.init(
         Token{ .tag = .identifier, .start = 0, .end = 3 }, // outer "key"
         Token{ .tag = .equal, .start = 4, .end = 5 }, // outer "="
-        BV.init_block(inner_block), // the block value
+        BV.from_block(inner_block), // the block value
     )));
 
     try std.testing.expectEqualDeep(expected, ast);
