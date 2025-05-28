@@ -1,0 +1,59 @@
+grammar ck3_simplified;
+
+// Simplified grammar supporting only value fields
+// Examples:
+// namespace = "hello_world"
+// title = hello_world.1.t
+// name = hello_world.1.a
+// debug_log = "Hello, world!"
+// count = 42
+// enabled = yes
+// date_created = 1066.10.14
+
+file: field_list EOF;
+
+field_list:
+    field*;
+
+field:
+    value_field;
+
+value_field:
+    key "=" value;
+
+key:
+    identifier 
+    | date 
+    | number
+    ;
+
+value:
+    identifier
+    | number
+    | quoted_string
+    | boolean
+    ;
+
+identifier:
+    any_identifier_char+;
+
+number:
+    '-'? digit+ ('.' digit+)? '%'?; // 100, -5.5, 10%
+
+fragment digit:
+    [0-9];
+
+quoted_string:
+    '"' quoted_string_char* '"';
+
+boolean:
+    "yes" | "no";
+
+date:
+    digit digit? digit? digit? '.' digit digit? '.' digit digit?;
+
+fragment quoted_string_char:
+    ~["\r\n];
+
+fragment any_identifier_char:
+    [a-zA-Z0-9_]; 
