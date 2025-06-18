@@ -19,11 +19,18 @@ pub const Item = struct {
         };
     }
 
+    /// The item is complete if the dot is at the end of the rule
+    ///
+    /// e.g. S -> A B •
     pub fn is_complete(self: Item) bool {
         return self.dot_pos >= self.rule.rhs.len;
     }
 
-    pub fn next_symbol(self: Item) ?Symbol {
+    /// The next symbol is the symbol after the dot.
+    /// Also advances the dot position.
+    ///
+    /// e.g. in "S -> A • B", the next symbol is B
+    pub fn next_symbol(self: *Item) ?Symbol {
         if (self.is_complete()) {
             return null;
         }
@@ -33,7 +40,12 @@ pub const Item = struct {
         return self.rule.rhs[self.dot_pos];
     }
 
-    /// e.g. S -> A b
+    /// Formats the struct as a string into a writer.
+    /// E.g. std.fmt.allocPrint, std.io.getStdOut().writer(), etc.
+    /// Not intended to be used directly. Instead provide item into args of std.fmt.allocPrint, etc.
+    ///
+    /// e.g. S -> A B •
+    /// Returns "S -> A B •"
     pub fn format(self: Item, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         try writer.print("{s} ->", .{self.rule.lhs.name});
 
