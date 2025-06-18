@@ -46,7 +46,7 @@ pub const Item = struct {
     ///
     /// e.g. S -> A B •
     /// Returns "S -> A B •"
-    pub fn format(self: Item, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: *const Item, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         try writer.print("{s} ->", .{self.rule.lhs.name});
 
         for (self.rule.rhs, 0..) |sym, i| {

@@ -20,7 +20,7 @@ pub const Rule = struct {
     ///
     /// e.g. S -> A A
     /// Returns "S -> A A"
-    pub fn format(self: Rule, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: *const Rule, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         try writer.print("{s} -> ", .{self.lhs});
         for (self.rhs, 0..) |symbol, i| {
             try writer.print("{s}", .{symbol});
