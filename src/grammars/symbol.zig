@@ -3,7 +3,7 @@ const std = @import("std");
 pub const Symbol = struct {
     name: []const u8,
 
-    /// Inline wrapper to create symbols
+    /// Inline wrapper for symbol creation
     pub inline fn from(name: []const u8) Symbol {
         return Symbol{ .name = name };
     }
