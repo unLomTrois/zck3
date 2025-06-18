@@ -25,7 +25,7 @@ pub fn ExpressionGrammar() Grammar {
             Rule.from(factor, &.{number}),
         },
         exp,
-    );
+    ) catch unreachable;
 }
 
 test "expression grammar" {

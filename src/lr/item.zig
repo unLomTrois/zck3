@@ -1,8 +1,8 @@
 const std = @import("std");
-const grammar = @import("grammar");
+const grammars = @import("grammars");
 
-const Symbol = grammar.Symbol;
-const Rule = grammar.Rule;
+const Symbol = grammars.Symbol;
+const Rule = grammars.Rule;
 
 /// Item represents an LR parsing item.
 /// It is a production rule with a dot position.

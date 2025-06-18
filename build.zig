@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const grammar_lib = b.addStaticLibrary(.{
-        .name = "grammar",
+        .name = "grammars",
         .root_module = grammar_mod,
     });
 
@@ -53,7 +53,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    lr_mod.addImport("grammar", grammar_mod);
+    lr_mod.addImport("grammars", grammar_mod);
 
     const lr_lib = b.addStaticLibrary(.{
         .name = "lr",
