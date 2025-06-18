@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const Symbol = @import("symbol.zig").Symbol;
-const Rule = @import("rules.zig").Rule;
+pub const Symbol = @import("symbol.zig").Symbol;
+pub const Rule = @import("rules.zig").Rule;
 
 pub const Grammar = struct {
     terminals: []const Symbol,
