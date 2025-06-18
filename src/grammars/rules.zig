@@ -7,7 +7,7 @@ pub const Rule = struct {
     rhs: []const Symbol,
 
     /// Create a new rule from a left-hand side symbol and a right-hand side sequence of symbols.
-    pub fn from(lhs: Symbol, rhs: []const Symbol) Rule {
+    pub inline fn from(lhs: Symbol, rhs: []const Symbol) Rule {
         return Rule{
             .lhs = lhs,
             .rhs = rhs,

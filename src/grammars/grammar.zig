@@ -82,3 +82,21 @@ test "grammar" {
 
     try std.testing.expectEqual(S, grammar.start_symbol);
 }
+
+test "expression grammar" {
+    const g = examples.ExpressionGrammar();
+
+    for (g.non_terminals) |symbol| {
+        const str = try std.fmt.allocPrint(std.testing.allocator, "{s}", .{symbol});
+        defer std.testing.allocator.free(str);
+        std.debug.print("{s}\n", .{str});
+    }
+
+    for (g.terminals) |t| {
+        std.debug.print("{s}\n", .{t});
+    }
+
+    for (g.rules) |rule| {
+        std.debug.print("{s}\n", .{rule});
+    }
+}
