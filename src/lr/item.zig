@@ -28,6 +28,8 @@ pub const Item = struct {
             return null;
         }
 
+        defer self.dot_pos += 1;
+
         return self.rule.rhs[self.dot_pos];
     }
 
@@ -42,7 +44,7 @@ pub const Item = struct {
             try writer.print(" {s}", .{sym.name});
         }
 
-        if (self.dot_pos == self.rule.rhs.len) {
+        if (self.is_complete()) {
             try writer.print(" •", .{});
         }
     }
@@ -58,10 +60,8 @@ test "next symbol" {
     var item = Item.init(rule, 0);
 
     try std.testing.expectEqual(item.next_symbol(), A);
-    item.dot_pos += 1;
-
     try std.testing.expectEqual(item.next_symbol(), B);
-    // try std.testing.expectEqual(item.next_symbol(), null);
+    try std.testing.expectEqual(item.next_symbol(), null);
 }
 
 test "item_format" {
