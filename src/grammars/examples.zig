@@ -14,15 +14,15 @@ pub fn ExpressionGrammar() Grammar {
     const factor = Symbol.from("factor");
 
     return Grammar.init(
-        &[_]Symbol{ number, plus, times, lparen, rparen },
-        &[_]Symbol{ exp, term, factor },
-        &[_]Rule{
-            Rule.from(exp, &[_]Symbol{ exp, plus, term }),
-            Rule.from(exp, &[_]Symbol{term}),
-            Rule.from(term, &[_]Symbol{ term, times, factor }),
-            Rule.from(term, &[_]Symbol{factor}),
-            Rule.from(factor, &[_]Symbol{ lparen, exp, rparen }),
-            Rule.from(factor, &[_]Symbol{number}),
+        &.{ number, plus, times, lparen, rparen },
+        &.{ exp, term, factor },
+        &.{
+            Rule.from(exp, &.{ exp, plus, term }),
+            Rule.from(exp, &.{term}),
+            Rule.from(term, &.{ term, times, factor }),
+            Rule.from(term, &.{factor}),
+            Rule.from(factor, &.{ lparen, exp, rparen }),
+            Rule.from(factor, &.{number}),
         },
         exp,
     );

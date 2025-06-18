@@ -74,6 +74,7 @@ pub fn build(b: *std.Build) void {
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
     const lr_unit_tests = b.addTest(.{
+        .name = "lr-tests",
         .root_module = lr_mod,
         .filters = test_filter orelse &.{},
     });
@@ -81,6 +82,7 @@ pub fn build(b: *std.Build) void {
     const run_lr_unit_tests = b.addRunArtifact(lr_unit_tests);
 
     const grammar_test = b.addTest(.{
+        .name = "grammar-tests",
         .root_module = grammar_mod,
         .filters = test_filter orelse &.{},
     });
