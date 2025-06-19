@@ -30,7 +30,12 @@ pub const Grammar = struct {
     rules: []const Rule,
     start_symbol: Symbol,
 
-    pub fn init(terminals: []const Symbol, non_terminals: []const Symbol, rules: []const Rule, start_symbol: Symbol) GrammarError!Grammar {
+    pub fn init(
+        terminals: []const Symbol,
+        non_terminals: []const Symbol,
+        rules: []const Rule,
+        start_symbol: Symbol,
+    ) GrammarError!Grammar {
         try check_start_rule(rules, start_symbol);
         try check_start_symbol(non_terminals, start_symbol);
 
@@ -60,6 +65,18 @@ pub const Grammar = struct {
         }
         return GrammarError.StartSymbolIsNotNonTerminal;
     }
+
+    // /// Returns a new grammar with a new start symbol and a new rule.
+    // /// For a grammar with start symbol S, where S -> A | B,
+    // /// Augmented grammar will have a new start symbol S', where S' -> S,
+    // /// This guarantees that the parsing table will have a single ACCEPT state.
+    // pub fn toAugmented(self: *const Grammar, _: std.mem.Allocator) !Grammar {
+    //     const s_prime = Symbol.from("S'");
+
+    //     // Add s_prime to the non-terminals
+
+    //     return Grammar.init(self.terminals, new_non_terminals, self.rules, s_prime);
+    // }
 };
 
 test "grammar" {
@@ -81,22 +98,4 @@ test "grammar" {
     }, S);
 
     try std.testing.expectEqual(S, grammar.start_symbol);
-}
-
-test "expression grammar" {
-    const g = examples.ExpressionGrammar();
-
-    for (g.non_terminals) |symbol| {
-        const str = try std.fmt.allocPrint(std.testing.allocator, "{s}", .{symbol});
-        defer std.testing.allocator.free(str);
-        std.debug.print("{s}\n", .{str});
-    }
-
-    for (g.terminals) |t| {
-        std.debug.print("{s}\n", .{t});
-    }
-
-    for (g.rules) |rule| {
-        std.debug.print("{s}\n", .{rule});
-    }
 }
