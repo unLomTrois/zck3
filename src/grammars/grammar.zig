@@ -4,6 +4,15 @@ pub const Symbol = @import("symbol.zig").Symbol;
 pub const Rule = @import("rules.zig").Rule;
 pub const examples = @import("examples.zig");
 
+const GrammarError = error{
+    /// The start symbol was not found in the rules.
+    /// E.g. the start symbol is S, but there is no rule that starts with S.
+    StartSymbolNotFoundInRules,
+
+    /// The start symbol is not a non-terminal.
+    StartSymbolIsNotNonTerminal,
+} || std.mem.Allocator.Error; // OutOfMemory
+
 /// Grammar is a deterministic context-free grammar. Written in Backus-Naur form.
 /// The purpose of Grammar is to define a set of production rules,
 /// which are used by a particular parser to construct its parse tables or automata.
@@ -28,7 +37,7 @@ pub const Grammar = struct {
         non_terminals: []const Symbol,
         rules: []const Rule,
         start_symbol: Symbol,
-    ) !Grammar {
+    ) GrammarError!Grammar {
         var g = Grammar{
             .allocator = allocator,
             .terminals = std.ArrayList(Symbol).init(allocator),
@@ -37,9 +46,13 @@ pub const Grammar = struct {
             .start_symbol = start_symbol,
         };
 
+        errdefer g.deinit();
+
         try g.terminals.appendSlice(terminals);
         try g.non_terminals.appendSlice(non_terminals);
         try g.rules.appendSlice(rules);
+
+        try g.validate();
 
         return g;
     }
@@ -48,6 +61,30 @@ pub const Grammar = struct {
         self.terminals.deinit();
         self.non_terminals.deinit();
         self.rules.deinit();
+    }
+
+    pub fn validate(self: *const Grammar) GrammarError!void {
+        var seen_start_symbol = false;
+        for (self.rules.items) |rule| {
+            if (rule.lhs.eql(self.start_symbol)) {
+                seen_start_symbol = true;
+            }
+        }
+
+        if (!seen_start_symbol) {
+            return GrammarError.StartSymbolNotFoundInRules;
+        }
+
+        seen_start_symbol = false;
+        for (self.non_terminals.items) |non_terminal| {
+            if (non_terminal.eql(self.start_symbol)) {
+                seen_start_symbol = true;
+            }
+        }
+
+        if (!seen_start_symbol) {
+            return GrammarError.StartSymbolIsNotNonTerminal;
+        }
     }
 
     const GrammarView = struct {
@@ -115,6 +152,51 @@ test "grammar view" {
     try std.testing.expectEqual(view.non_terminals.len, 3);
     try std.testing.expectEqual(view.rules.len, 6);
     try std.testing.expectEqual(view.start_symbol, Symbol.from("exp"));
+}
+
+test "GrammarError.StartSymbolNotFoundInRules" {
+    const S = Symbol.from("S");
+    const A = Symbol.from("A");
+    const a = Symbol.from("a");
+
+    const failing_grammar = Grammar.init(std.testing.allocator, &.{
+        a,
+    }, &.{
+        S,
+        A,
+    }, &.{
+        // Rule.from(S, &.{ A, A }), // This is missing
+        Rule.from(A, &.{a}),
+    }, S) catch |err| {
+        try std.testing.expectEqual(err, GrammarError.StartSymbolNotFoundInRules);
+        return;
+    };
+
+    // No double-free, because in case of error, it deinits and returns with "try",
+    defer failing_grammar.deinit();
+    unreachable; // So it is unreachable
+}
+
+test "GrammarError.StartSymbolIsNotNonTerminal" {
+    const S = Symbol.from("S");
+    const A = Symbol.from("A");
+    const a = Symbol.from("a");
+
+    const failing_grammar = Grammar.init(std.testing.allocator, &.{
+        a,
+    }, &.{
+        A,
+        // S, // This is missing
+    }, &.{
+        Rule.from(S, &.{ A, A }),
+        Rule.from(A, &.{a}),
+    }, S) catch |err| {
+        try std.testing.expectEqual(err, GrammarError.StartSymbolIsNotNonTerminal);
+        return;
+    };
+
+    defer failing_grammar.deinit();
+    unreachable; // So it is unreachable
 }
 
 test "augmented grammar" {
