@@ -3,7 +3,8 @@ const Grammar = @import("grammar.zig").Grammar;
 const Symbol = @import("symbol.zig").Symbol;
 const Rule = @import("rules.zig").Rule;
 
-pub fn ExpressionGrammar() Grammar {
+/// Caller must deinit the grammar.
+pub fn ExpressionGrammar(allocator: std.mem.Allocator) !Grammar {
     const number = Symbol.from("number");
     const plus = Symbol.from("+");
     const times = Symbol.from("*");
@@ -13,7 +14,8 @@ pub fn ExpressionGrammar() Grammar {
     const term = Symbol.from("term");
     const factor = Symbol.from("factor");
 
-    return Grammar.init(
+    return try Grammar.init(
+        allocator,
         &.{ number, plus, times, lparen, rparen },
         &.{ exp, term, factor },
         &.{
@@ -25,10 +27,11 @@ pub fn ExpressionGrammar() Grammar {
             Rule.from(factor, &.{number}),
         },
         exp,
-    ) catch unreachable; // Everything here is okay
+    );
 }
 
 test "expression grammar" {
-    const grammar = ExpressionGrammar();
-    try std.testing.expectEqual(grammar.terminals.len, 5);
+    const grammar = try ExpressionGrammar(std.testing.allocator);
+    defer grammar.deinit();
+    try std.testing.expectEqual(grammar.terminals.items.len, 5);
 }
