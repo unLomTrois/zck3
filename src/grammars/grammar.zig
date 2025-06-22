@@ -143,7 +143,7 @@ pub const GrammarBuilder = struct {
     /// Adds a new start symbol S' and a new rule S' -> S.
     /// Returns a new StaticGrammar that takes ownership of the underlying memory of the GrammarBuilder.
     /// Caller must free the memory.
-    pub inline fn toAugmented(self: *GrammarBuilder) error{OutOfMemory}!Grammar {
+    pub fn toAugmented(self: *GrammarBuilder) error{OutOfMemory}!Grammar {
         self.was_moved = true;
 
         const s_prime = Symbol.from("S'");
