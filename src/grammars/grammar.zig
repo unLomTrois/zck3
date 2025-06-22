@@ -73,6 +73,8 @@ pub const GrammarBuilder = struct {
     start_symbol: Symbol,
     was_moved: bool = false, // If the GrammarBuilder was moved, we don't need to free the memory.
 
+    /// Build a mutable builder from a StaticGrammar.
+    /// All slices are **copied** with `allocator`, so the input view stays valid.
     pub fn fromStatic(
         allocator: std.mem.Allocator,
         base_grammar: StaticGrammar,
@@ -91,6 +93,9 @@ pub const GrammarBuilder = struct {
         };
     }
 
+    /// Build a builder by **moving** data out of an owning Grammar.
+    /// After the call `base_grammar`'s slices are empty and the builder now
+    /// owns them.
     pub fn fromOwned(
         allocator: std.mem.Allocator,
         base_grammar: Grammar,
