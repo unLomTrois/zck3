@@ -42,14 +42,14 @@ pub const Grammar = struct {
     terminals: []Symbol,
     non_terminals: []Symbol,
     rules: []Rule,
+    is_augmented: bool = false,
 
     pub fn deinit(self: *const Grammar, allocator: std.mem.Allocator) void {
         allocator.free(self.terminals);
         allocator.free(self.non_terminals);
 
-        if (self.start_symbol.eql(Symbol.from("S'"))) {
-            allocator.free(self.rules[0].rhs);
-            self.start_symbol.deinit(allocator);
+        if (self.is_augmented) {
+            allocator.free(self.rules[0].rhs); // S'
         }
 
         allocator.free(self.rules);
@@ -125,7 +125,7 @@ pub const GrammarBuilder = struct {
     /// Returns a new StaticGrammar that takes ownership of the underlying memory of the GrammarBuilder.
     /// Caller must free the memory.
     pub fn toAugmented(self: *GrammarBuilder) error{OutOfMemory}!Grammar {
-        const s_prime = try Symbol.fromAlloc(self.allocator, "S'");
+        const s_prime = Symbol.from("S'");
         try self.non_terminals.insert(0, s_prime);
 
         const augmented_rule = Rule.from(
@@ -136,7 +136,13 @@ pub const GrammarBuilder = struct {
 
         self.start_symbol = s_prime;
 
-        return self.toOwnedGrammar();
+        return Grammar{
+            .start_symbol = self.start_symbol,
+            .terminals = try self.terminals.toOwnedSlice(),
+            .non_terminals = try self.non_terminals.toOwnedSlice(),
+            .rules = try self.rules.toOwnedSlice(),
+            .is_augmented = true,
+        };
     }
 };
 
@@ -226,42 +232,6 @@ test "full conversion cycle: static → builder → owned → builder → static
 
     std.debug.print("✓ Full conversion cycle completed successfully!\n", .{});
 }
-
-// fn expressionGrammar(allocator: std.mem.Allocator) !Grammar {
-//     const exp = try Symbol.fromAlloc(allocator, "exp");
-//     const term = try Symbol.fromAlloc(allocator, "term");
-//     const factor = try Symbol.fromAlloc(allocator, "factor");
-
-//     const number = try Symbol.fromAlloc(allocator, "number");
-//     const plus = try Symbol.fromAlloc(allocator, "+");
-//     const times = try Symbol.fromAlloc(allocator, "*");
-//     const lparen = try Symbol.fromAlloc(allocator, "(");
-//     const rparen = try Symbol.fromAlloc(allocator, ")");
-
-//     const terminals = try Symbol.fromSlice(allocator, &.{
-//         number,
-//         plus,
-//         times,
-//         lparen,
-//         rparen,
-//     });
-
-//     const non_terminals = try Symbol.fromSlice(allocator, &.{ exp, term, factor });
-
-//     const rules = try Rule.fromSlice(allocator, &.{
-//         Rule.from(exp, try Symbol.fromSlice(allocator, &.{ exp, plus, term })),
-//         Rule.from(exp, try Symbol.fromSlice(allocator, &.{term})),
-//         Rule.from(term, try Symbol.fromSlice(allocator, &.{ term, times, factor })),
-//         Rule.from(term, try Symbol.fromSlice(allocator, &.{factor})),
-//     });
-
-//     return Grammar{
-//         .start_symbol = exp,
-//         .terminals = terminals,
-//         .non_terminals = non_terminals,
-//         .rules = rules,
-//     };
-// }
 
 test "expression grammar" {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
