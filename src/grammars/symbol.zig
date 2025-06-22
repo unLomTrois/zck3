@@ -11,6 +11,10 @@ pub const Symbol = struct {
         return Symbol{ .name = name };
     }
 
+    pub noinline fn fromNoInline(name: []const u8) Symbol {
+        return Symbol{ .name = name };
+    }
+
     /// fromAlloc creates a symbol from a passed string, but also allocates the string inside the symbol
     /// It returns an unmanaged symbol, caller is responsible for freeing the string.
     /// Generally, you would use arena allocator for all three: grammar, rule, and symbol allocation.
@@ -22,6 +26,12 @@ pub const Symbol = struct {
 
     pub fn deinit(self: *const Symbol, alloc: std.mem.Allocator) void {
         alloc.free(self.name);
+    }
+
+    /// Copies and takes ownership of a slice, caller is responsible for freeing the slice.
+    /// Elements of the slice are supposed to be inited by fromInline.
+    pub fn fromSlice(alloc: std.mem.Allocator, symbols: []const Symbol) ![]Symbol {
+        return try alloc.dupe(Symbol, symbols);
     }
 
     /// Formats the struct as a string into a writer.
@@ -144,4 +154,174 @@ test "not failing out of scope rule" {
     try std.testing.expectEqualStrings("S", symbol_wrapper.lhs.name);
     try std.testing.expectEqualStrings("A", symbol_wrapper.rhs[0].name);
     try std.testing.expectEqualStrings("B", symbol_wrapper.rhs[1].name); // NOT SEGFAULT
+}
+
+// This is usable if both symbols and the array are allocated in the same arena.
+const UnmanagedSymbolArrayList = struct {
+    symbols: std.ArrayList(Symbol),
+
+    fn from(alloc: std.mem.Allocator, symbols: []Symbol) UnmanagedSymbolArrayList {
+        return UnmanagedSymbolArrayList{
+            .symbols = std.ArrayList(Symbol).fromOwnedSlice(alloc, symbols),
+        };
+    }
+};
+
+test "symbol slice" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
+
+    const S = try Symbol.fromAlloc(alloc, "S");
+    const A = try Symbol.fromAlloc(alloc, "A");
+    const B = try Symbol.fromAlloc(alloc, "B");
+
+    const symbols = try Symbol.fromSlice(alloc, &.{ S, A, B });
+
+    var symbol_array_list = UnmanagedSymbolArrayList.from(alloc, symbols);
+
+    const S_prime = try Symbol.fromAlloc(alloc, "S'");
+    try symbol_array_list.symbols.append(S_prime);
+
+    try std.testing.expectEqualStrings("S", symbol_array_list.symbols.items[0].name);
+    try std.testing.expectEqualStrings("A", symbol_array_list.symbols.items[1].name);
+    try std.testing.expectEqualStrings("B", symbol_array_list.symbols.items[2].name);
+    try std.testing.expectEqualStrings("S'", symbol_array_list.symbols.items[3].name);
+}
+
+// Managed symbol array list has deinit for both symbols and the owned slice.
+const ManagedSymbolArrayList = struct {
+    allocator: std.mem.Allocator,
+    symbols: std.ArrayList(Symbol),
+
+    fn from(alloc: std.mem.Allocator, symbols: []Symbol) ManagedSymbolArrayList {
+        return ManagedSymbolArrayList{
+            .allocator = alloc,
+            .symbols = std.ArrayList(Symbol).fromOwnedSlice(alloc, symbols),
+        };
+    }
+
+    fn deinit(self: *ManagedSymbolArrayList) void {
+        for (self.symbols.items) |symbol| { // Must to deinit each allocated symbol
+            symbol.deinit(self.allocator);
+        }
+        self.symbols.deinit(); // Frees allocated slice
+    }
+};
+
+test "managed symbol array list" {
+    const alloc = std.testing.allocator;
+
+    // freed by symbol_array_list.deinit()
+    const S = try Symbol.fromAlloc(alloc, "S");
+    const A = try Symbol.fromAlloc(alloc, "A");
+    const B = try Symbol.fromAlloc(alloc, "B");
+
+    // freed by symbol_array_list.deinit()
+    const symbols = try Symbol.fromSlice(alloc, &.{ S, A, B });
+
+    var symbol_array_list = ManagedSymbolArrayList.from(alloc, symbols);
+
+    defer symbol_array_list.deinit();
+
+    const S_prime = try Symbol.fromAlloc(alloc, "S'");
+    try symbol_array_list.symbols.append(S_prime);
+
+    try std.testing.expectEqualStrings("S", symbol_array_list.symbols.items[0].name);
+    try std.testing.expectEqualStrings("A", symbol_array_list.symbols.items[1].name);
+    try std.testing.expectEqualStrings("B", symbol_array_list.symbols.items[2].name);
+    try std.testing.expectEqualStrings("S'", symbol_array_list.symbols.items[3].name);
+}
+
+// Less managed symbol array list implies Symbols are inlined,
+// And only deinit allocated slices. Elements of the slices are not freed.
+const LessManagedSymbolArrayList = struct {
+    allocator: std.mem.Allocator,
+    symbols: std.ArrayList(Symbol),
+
+    fn from(alloc: std.mem.Allocator, symbols: []Symbol) LessManagedSymbolArrayList {
+        return LessManagedSymbolArrayList{
+            .allocator = alloc,
+            .symbols = std.ArrayList(Symbol).fromOwnedSlice(alloc, symbols),
+        };
+    }
+
+    fn deinit(self: *LessManagedSymbolArrayList) void {
+        self.symbols.deinit();
+    }
+};
+
+test "less managed symbol array list" {
+    const alloc = std.testing.allocator;
+
+    const S = Symbol.from("S");
+    const A = Symbol.from("A");
+    const B = Symbol.from("B");
+
+    const symbols = try Symbol.fromSlice(alloc, &.{ S, A, B });
+
+    var symbol_array_list = LessManagedSymbolArrayList.from(alloc, symbols);
+    defer symbol_array_list.deinit();
+
+    try std.testing.expectEqualStrings("S", symbol_array_list.symbols.items[0].name);
+    try std.testing.expectEqualStrings("A", symbol_array_list.symbols.items[1].name);
+    try std.testing.expectEqualStrings("B", symbol_array_list.symbols.items[2].name);
+}
+
+// Will it work with out of scope symbols?
+
+fn outOfScopeSymbolArrayList(alloc: std.mem.Allocator) ![]Symbol {
+    const S = Symbol.fromNoInline("Saaaa"); // prove of concept
+    const A = Symbol.fromNoInline("Aaaaa");
+    const B = Symbol.fromNoInline("Baaaa");
+
+    return try Symbol.fromSlice(alloc, &.{ S, A, B });
+}
+
+test "out of scope symbol array list" {
+    const alloc = std.testing.allocator;
+
+    const symbols = try outOfScopeSymbolArrayList(alloc);
+
+    for (symbols) |symbol| {
+        std.debug.print("{s}\n", .{symbol.name}); // No segfault!
+    }
+
+    var symbol_array_list = LessManagedSymbolArrayList.from(alloc, symbols);
+    defer symbol_array_list.deinit(); // No leak!
+
+    // LessManagedSymbolArrayList can take allocated symbols, but they deinit themselves.
+    // It does not tries to deinit elements of the slice unlike ManagedSymbolArrayList.
+    const S_prime = try Symbol.fromAlloc(alloc, "S'aaaa");
+    defer S_prime.deinit(alloc);
+    try symbol_array_list.symbols.append(S_prime);
+
+    try std.testing.expectEqualStrings("Saaaa", symbol_array_list.symbols.items[0].name);
+    try std.testing.expectEqualStrings("Aaaaa", symbol_array_list.symbols.items[1].name);
+    try std.testing.expectEqualStrings("Baaaa", symbol_array_list.symbols.items[2].name);
+    try std.testing.expectEqualStrings("S'aaaa", symbol_array_list.symbols.items[3].name);
+}
+
+test "arena variant of less managed symbol array list" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
+
+    const S = Symbol.fromNoInline("S");
+    const A = Symbol.fromNoInline("A");
+    const B = Symbol.fromNoInline("B");
+
+    const symbols = try Symbol.fromSlice(alloc, &.{ S, A, B });
+
+    var symbol_array_list = LessManagedSymbolArrayList.from(alloc, symbols);
+    // defer symbol_array_list.deinit(); // No needed, because of arena
+
+    const S_prime = try Symbol.fromAlloc(alloc, "S'");
+    // defer S_prime.deinit(alloc); // No needed, because of arena
+    try symbol_array_list.symbols.append(S_prime);
+
+    try std.testing.expectEqualStrings("S", symbol_array_list.symbols.items[0].name);
+    try std.testing.expectEqualStrings("A", symbol_array_list.symbols.items[1].name);
+    try std.testing.expectEqualStrings("B", symbol_array_list.symbols.items[2].name);
+    try std.testing.expectEqualStrings("S'", symbol_array_list.symbols.items[3].name);
 }
