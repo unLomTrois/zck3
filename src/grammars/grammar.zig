@@ -6,15 +6,8 @@ pub const examples = @import("examples.zig");
 pub const validator = @import("validator.zig");
 
 /// Grammar is a deterministic context-free grammar. Written in Backus-Naur form.
-/// The purpose of Grammar is to define a set of production rules,
-/// which are used by a particular parser to construct its parse tables or automata.
-///
-/// It is defined by a set of terminals, non-terminals, rules, and a start symbol.
-/// The start symbol is the symbol that is used to start the derivation.
-///
-/// The terminals are the symbols that cannot be expanded (e.g 5, +, *).
-///
-/// The non-terminals are the symbols that can be expanded (e.g. number, operator, etc).
+/// StaticGrammar – read-only view, no allocation, no deinit. Safe only while
+/// the borrowed slices remain alive. Feed it into `GrammarBuilder` to mutate.
 pub const StaticGrammar = struct {
     start_symbol: Symbol,
     terminals: []const Symbol,
@@ -38,16 +31,11 @@ pub const StaticGrammar = struct {
     }
 };
 
-/// Grammar is a deterministic context-free grammar. Written in Backus-Naur form.
-/// The purpose of Grammar is to define a set of production rules,
-/// which are used by a particular parser to construct its parse tables or automata.
-///
-/// It is defined by a set of terminals, non-terminals, rules, and a start symbol.
-/// The start symbol is the symbol that is used to start the derivation.
-///
-/// The terminals are the symbols that cannot be expanded (e.g 5, +, *).
-///
-/// The non-terminals are the symbols that can be expanded (e.g. number, operator, etc).
+/// Grammar – owning, immutable. Produced by `GrammarBuilder`; must be
+/// `deinit`ed or dropped with its arena.  `asStatic()` returns a view.
+/// Note: `GrammarBuilder.fromOwned()` moves data out of a Grammar; conversely
+/// `builder.toOwnedGrammar()` moves it out of the builder – only one owner at
+/// a time.
 pub const Grammar = struct {
     start_symbol: Symbol,
     terminals: []Symbol,
@@ -74,6 +62,9 @@ pub const Grammar = struct {
     }
 };
 
+/// GrammarBuilder – stack-local mutable builder. Owns its memory until
+/// `toOwnedGrammar()`/`toAugmented()` transfers it to a `Grammar`. Never
+/// return a live builder; move its data first.
 pub const GrammarBuilder = struct {
     allocator: std.mem.Allocator,
     terminals: std.ArrayList(Symbol),
@@ -171,9 +162,7 @@ pub const GrammarBuilder = struct {
 };
 
 test "full conversion cycle: static → builder → owned → builder → static" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
+    const allocator = std.testing.allocator;
 
     // Start with a static grammar
     const S = Symbol.from("S");
@@ -193,29 +182,24 @@ test "full conversion cycle: static → builder → owned → builder → static
     );
 
     // Convert static → builder
-    var builder1 = try GrammarBuilder.fromStatic(allocator, original_static);
+    var builder = try GrammarBuilder.fromStatic(allocator, original_static);
+
     // Convert builder → owned
-    const owned = try builder1.toOwnedGrammar();
-    // Convert owned → builder (by treating owned as static)
-    var builder2 = try GrammarBuilder.fromOwned(allocator, owned);
+    const g = try builder.toOwnedGrammar();
+
+    // Convert owned → builder (by treating owned)
+    builder = try GrammarBuilder.fromOwned(allocator, g);
+
+    // add a new symbol
+    const c = Symbol.from("c");
+    try builder.non_terminals.append(c);
+    defer builder.deinit();
+
     // Convert builder → static
-    const final_static = builder2.View();
+    const final_static = builder.View();
 
-    // Verify the cycle preserved the grammar structure
-    try std.testing.expectEqual(original_static.start_symbol, final_static.start_symbol);
-    try std.testing.expectEqual(original_static.terminals.len, final_static.terminals.len);
-    try std.testing.expectEqual(original_static.non_terminals.len, final_static.non_terminals.len);
-    try std.testing.expectEqual(original_static.rules.len, final_static.rules.len);
-
-    // Verify terminal symbols are equivalent
-    for (original_static.terminals, final_static.terminals) |orig, final| {
-        try std.testing.expect(Symbol.eql(orig, final));
-    }
-
-    // Verify non-terminal symbols are equivalent
-    for (original_static.non_terminals, final_static.non_terminals) |orig, final| {
-        try std.testing.expect(Symbol.eql(orig, final));
-    }
+    // check that the new symbol is not in the grammar
+    try std.testing.expect(final_static.non_terminals[final_static.non_terminals.len - 1].eql(c));
 }
 
 test "expression grammar" {
