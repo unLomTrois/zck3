@@ -30,7 +30,7 @@ pub const Symbol = struct {
 
     /// Copies and takes ownership of a slice, caller is responsible for freeing the slice.
     /// Elements of the slice are supposed to be inited by fromInline.
-    pub fn fromSlice(alloc: std.mem.Allocator, symbols: []const Symbol) ![]Symbol {
+    pub fn fromSlice(alloc: std.mem.Allocator, symbols: []const Symbol) error{OutOfMemory}![]Symbol {
         return try alloc.dupe(Symbol, symbols);
     }
 
@@ -117,9 +117,9 @@ test "out of scope slice" {
 
     const syms = try outOfScopeSlice(alloc);
 
-    for (syms) |sym| {
-        std.debug.print("{s}\n", .{sym.name});
-    }
+    try std.testing.expectEqualStrings("S", syms[0].name);
+    try std.testing.expectEqualStrings("A", syms[1].name);
+    try std.testing.expectEqualStrings("B", syms[2].name);
 }
 
 // TODO: move following tests to rules.zig
@@ -282,10 +282,6 @@ test "out of scope symbol array list" {
     const alloc = std.testing.allocator;
 
     const symbols = try outOfScopeSymbolArrayList(alloc);
-
-    for (symbols) |symbol| {
-        std.debug.print("{s}\n", .{symbol.name}); // No segfault!
-    }
 
     var symbol_array_list = LessManagedSymbolArrayList.from(alloc, symbols);
     defer symbol_array_list.deinit(); // No leak!
