@@ -11,6 +11,21 @@ const GrammarError = error{
 
     /// The start symbol is not a non-terminal.
     StartSymbolIsNotNonTerminal,
+
+    EmptyTerminals,
+    EmptyNonTerminals,
+    EmptyRules,
+
+    DuplicateTerminal,
+    DuplicateNonTerminal,
+    OverlapBetweenSets,
+
+    LhsIsTerminal,
+    LhsIsNotNonTerminal,
+    UnknownSymbolInRhs,
+
+    UnreachableNonTerminal,
+    NonProductiveNonTerminal,
 } || std.mem.Allocator.Error; // OutOfMemory
 
 /// Grammar is a deterministic context-free grammar. Written in Backus-Naur form.
@@ -64,28 +79,65 @@ pub const Grammar = struct {
     }
 
     pub fn validate(self: *const Grammar) GrammarError!void {
-        var seen_start_symbol = false;
-        for (self.rules.items) |rule| {
-            if (rule.lhs.eql(self.start_symbol)) {
-                seen_start_symbol = true;
-            }
-        }
-
-        if (!seen_start_symbol) {
-            return GrammarError.StartSymbolNotFoundInRules;
-        }
-
-        seen_start_symbol = false;
-        for (self.non_terminals.items) |non_terminal| {
-            if (non_terminal.eql(self.start_symbol)) {
-                seen_start_symbol = true;
-            }
-        }
-
-        if (!seen_start_symbol) {
-            return GrammarError.StartSymbolIsNotNonTerminal;
-        }
+        return GrammarValidator.validate(self);
     }
+
+    const GrammarValidator = struct {
+        const Self = @This();
+
+        fn validate(grammar: *const Grammar) GrammarError!void {
+            try Self.validate_sets(grammar);
+            try Self.validate_start_symbol(grammar);
+        }
+
+        fn validate_sets(grammar: *const Grammar) error{
+            EmptyTerminals,
+            EmptyNonTerminals,
+            EmptyRules,
+        }!void {
+            if (grammar.terminals.items.len == 0) {
+                return GrammarError.EmptyTerminals;
+            }
+            if (grammar.non_terminals.items.len == 0) {
+                return GrammarError.EmptyNonTerminals;
+            }
+            if (grammar.rules.items.len == 0) {
+                return GrammarError.EmptyRules;
+            }
+        }
+
+        fn validate_start_symbol(grammar: *const Grammar) error{
+            StartSymbolNotFoundInRules,
+            StartSymbolIsNotNonTerminal,
+        }!void {
+            // First make sure at least one rule has the start symbol on the LHS.
+            const found_in_rules = blk: {
+                for (grammar.rules.items) |rule| {
+                    if (rule.lhs.eql(grammar.start_symbol)) {
+                        break :blk true;
+                    }
+                }
+                break :blk false;
+            };
+
+            if (!found_in_rules) {
+                return GrammarError.StartSymbolNotFoundInRules;
+            }
+
+            const found_in_non_terminals = blk: {
+                for (grammar.non_terminals.items) |non_terminal| {
+                    if (non_terminal.eql(grammar.start_symbol)) {
+                        break :blk true;
+                    }
+                }
+                break :blk false;
+            };
+
+            if (!found_in_non_terminals) {
+                return GrammarError.StartSymbolIsNotNonTerminal;
+            }
+        }
+    };
 
     const GrammarView = struct {
         terminals: []const Symbol,
