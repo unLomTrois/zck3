@@ -38,6 +38,16 @@ pub const StaticGrammar = struct {
     }
 };
 
+/// Grammar is a deterministic context-free grammar. Written in Backus-Naur form.
+/// The purpose of Grammar is to define a set of production rules,
+/// which are used by a particular parser to construct its parse tables or automata.
+///
+/// It is defined by a set of terminals, non-terminals, rules, and a start symbol.
+/// The start symbol is the symbol that is used to start the derivation.
+///
+/// The terminals are the symbols that cannot be expanded (e.g 5, +, *).
+///
+/// The non-terminals are the symbols that can be expanded (e.g. number, operator, etc).
 pub const Grammar = struct {
     start_symbol: Symbol,
     terminals: []Symbol,
