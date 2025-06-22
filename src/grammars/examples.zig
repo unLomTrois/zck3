@@ -54,11 +54,10 @@ test "augmented expression grammar" {
     try std.testing.expectEqual(7, augmented_grammar.rules.len);
 }
 
-// This function creates an augmented grammar and returns it
+/// Caller must deinit the grammar.
 fn createAugmentedGrammar(allocator: std.mem.Allocator) !Grammar {
     const grammar = try ExpressionGrammar(allocator);
     var builder = try GrammarBuilder.fromOwned(allocator, grammar);
-
     return try builder.toAugmented();
 }
 
