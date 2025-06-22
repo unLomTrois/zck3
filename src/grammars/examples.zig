@@ -45,8 +45,6 @@ test "augmented expression grammar" {
     const grammar = try ExpressionGrammar(allocator);
 
     var builder = try GrammarBuilder.fromOwned(allocator, grammar);
-    defer builder.deinit();
-
     const augmented_grammar = try builder.toAugmented();
     defer augmented_grammar.deinit(allocator);
 
@@ -54,4 +52,33 @@ test "augmented expression grammar" {
     try std.testing.expectEqual(5, augmented_grammar.terminals.len);
     try std.testing.expectEqual(4, augmented_grammar.non_terminals.len);
     try std.testing.expectEqual(7, augmented_grammar.rules.len);
+}
+
+// This function creates an augmented grammar and returns it
+fn createAugmentedGrammar(allocator: std.mem.Allocator) !Grammar {
+    const grammar = try ExpressionGrammar(allocator);
+    var builder = try GrammarBuilder.fromOwned(allocator, grammar);
+
+    return try builder.toAugmented();
+}
+
+test "dangling pointer bug demonstration" {
+    const allocator = std.testing.allocator;
+
+    // Create the augmented grammar in a separate function
+    const augmented_grammar = try createAugmentedGrammar(allocator);
+    defer augmented_grammar.deinit(allocator);
+    // This should crash or produce garbage because the rhs slice
+    // in the first rule (S' -> exp) is now pointing to overwritten memory
+    std.log.info("Augmented grammar rules:\n", .{});
+    for (augmented_grammar.rules) |rule| {
+        std.log.info("Rule: {s} -> ", .{rule.lhs});
+        for (rule.rhs) |symbol| {
+            std.log.info("{s} ", .{symbol});
+        }
+        std.log.info("\n", .{});
+    }
+
+    // This assertion will likely fail due to corrupted memory
+    try std.testing.expect(augmented_grammar.start_symbol.eql(Symbol.from("S'")));
 }

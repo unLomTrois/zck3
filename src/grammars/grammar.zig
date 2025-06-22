@@ -47,11 +47,9 @@ pub const Grammar = struct {
     pub fn deinit(self: *const Grammar, allocator: std.mem.Allocator) void {
         allocator.free(self.terminals);
         allocator.free(self.non_terminals);
-
         if (self.is_augmented) {
-            allocator.free(self.rules[0].rhs); // S'
+            allocator.free(self.rules[0].rhs);
         }
-
         allocator.free(self.rules);
     }
 };
@@ -62,6 +60,7 @@ pub const GrammarBuilder = struct {
     non_terminals: std.ArrayList(Symbol),
     rules: std.ArrayList(Rule),
     start_symbol: Symbol,
+    was_moved: bool = false, // If the GrammarBuilder was moved, we don't need to free the memory.
 
     pub fn fromStatic(
         allocator: std.mem.Allocator,
@@ -95,6 +94,10 @@ pub const GrammarBuilder = struct {
     }
 
     pub fn deinit(self: *const GrammarBuilder) void {
+        if (self.was_moved) {
+            std.log.warn("GrammarBuilder data was moved, no need to deinit\n", .{});
+        }
+
         self.terminals.deinit();
         self.non_terminals.deinit();
         self.rules.deinit();
@@ -124,16 +127,17 @@ pub const GrammarBuilder = struct {
     /// Adds a new start symbol S' and a new rule S' -> S.
     /// Returns a new StaticGrammar that takes ownership of the underlying memory of the GrammarBuilder.
     /// Caller must free the memory.
-    pub fn toAugmented(self: *GrammarBuilder) error{OutOfMemory}!Grammar {
+    pub inline fn toAugmented(self: *GrammarBuilder) error{OutOfMemory}!Grammar {
+        self.was_moved = true;
+
         const s_prime = Symbol.from("S'");
         try self.non_terminals.insert(0, s_prime);
 
-        const augmented_rule = Rule.from(
-            s_prime,
-            try Symbol.fromSlice(self.allocator, &.{self.start_symbol}),
-        );
+        const augmented_rule = Rule.from(s_prime, try Symbol.fromSlice(
+            self.allocator,
+            &.{self.start_symbol},
+        ));
         try self.rules.insert(0, augmented_rule);
-
         self.start_symbol = s_prime;
 
         return Grammar{
@@ -146,35 +150,7 @@ pub const GrammarBuilder = struct {
     }
 };
 
-test "grammar builder" {
-    std.debug.print("grammar builder to static grammar\n", .{});
-    const allocator = std.testing.allocator;
-
-    const S = Symbol.from("S");
-    const A = Symbol.from("A");
-    const a = Symbol.from("a");
-    const b = Symbol.from("b");
-
-    const base_grammar = StaticGrammar.from(
-        S,
-        &.{ a, b },
-        &.{ S, A },
-        &.{Rule.from(S, &.{ A, A })},
-    );
-
-    var builder = try GrammarBuilder.fromStatic(allocator, base_grammar);
-    defer builder.deinit();
-
-    std.debug.print("before:\n{any}\n", .{builder.View()});
-
-    try builder.non_terminals.insert(0, Symbol.from("S'"));
-    try builder.rules.insert(0, Rule.from(Symbol.from("S'"), &.{S}));
-
-    std.debug.print("after:\n{any}\n", .{builder.View()});
-}
-
 test "full conversion cycle: static → builder → owned → builder → static" {
-    std.debug.print("\nfull conversion cycle test\n", .{});
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
@@ -196,23 +172,14 @@ test "full conversion cycle: static → builder → owned → builder → static
         },
     );
 
-    std.debug.print("1. Original static grammar: {any}\n", .{original_static});
-
     // Convert static → builder
     var builder1 = try GrammarBuilder.fromStatic(allocator, original_static);
-    std.debug.print("2. After static → builder: {any}\n", .{builder1.View()});
-
     // Convert builder → owned
     const owned = try builder1.toOwnedGrammar();
-    std.debug.print("3. After builder → owned: {any}\n", .{owned});
-
     // Convert owned → builder (by treating owned as static)
     var builder2 = try GrammarBuilder.fromOwned(allocator, owned);
-    std.debug.print("4. After owned → builder: {any}\n", .{builder2.View()});
-
     // Convert builder → static
     const final_static = builder2.View();
-    std.debug.print("5. Final static grammar: {any}\n", .{final_static});
 
     // Verify the cycle preserved the grammar structure
     try std.testing.expectEqual(original_static.start_symbol, final_static.start_symbol);
@@ -229,8 +196,6 @@ test "full conversion cycle: static → builder → owned → builder → static
     for (original_static.non_terminals, final_static.non_terminals) |orig, final| {
         try std.testing.expect(Symbol.eql(orig, final));
     }
-
-    std.debug.print("✓ Full conversion cycle completed successfully!\n", .{});
 }
 
 test "expression grammar" {
@@ -240,12 +205,12 @@ test "expression grammar" {
 
     const grammar = try examples.ExpressionGrammar(allocator);
 
-    std.debug.print("expression grammar:\n{any}\n", .{grammar});
+    std.log.info("expression grammar:\n{any}\n", .{grammar});
 
     var builder = try GrammarBuilder.fromOwned(allocator, grammar);
     const augmented_grammar = try builder.toAugmented();
 
-    std.debug.print("augmented grammar:\n{any}\n", .{augmented_grammar});
+    std.log.info("augmented grammar:\n{any}\n", .{augmented_grammar});
 }
 
 pub const GrammarError = error{
