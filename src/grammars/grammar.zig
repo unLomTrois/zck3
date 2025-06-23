@@ -82,6 +82,11 @@ pub const Grammar = struct {
         }
         return false;
     }
+
+    /// Returns an iterator over the rules with the given symbol as the lhs.
+    pub fn rulesForSymbol(self: *const Grammar, symbol: Symbol) Rule.LhsMatchIter {
+        return Rule.LhsMatchIter.from(self.rules, symbol);
+    }
 };
 
 /// GrammarBuilder – stack-local mutable builder. Owns its memory until

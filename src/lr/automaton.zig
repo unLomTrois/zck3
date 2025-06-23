@@ -96,7 +96,7 @@ pub const Automaton = struct {
 
             try seen_symbols.put(dot_symbol, {});
 
-            var rule_iter = Rule.LhsMatchIter.from(self.grammar.rules, dot_symbol);
+            var rule_iter = self.grammar.rulesForSymbol(dot_symbol);
             while (rule_iter.next()) |rule| {
                 const new_item = Item.from(rule);
                 try closure_items.append(new_item);
