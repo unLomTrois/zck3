@@ -5,7 +5,16 @@ const Rule = @import("rules.zig").Rule;
 const GrammarBuilder = @import("grammar.zig").GrammarBuilder;
 const StaticGrammar = @import("grammar.zig").StaticGrammar;
 
+/// Returns an owned expression grammar. Designed for expressions like `(1 + 2) * 3`.
 /// Caller must deinit the grammar.
+///
+/// Grammar:
+/// exp -> exp + term
+/// exp -> term
+/// term -> term * factor
+/// term -> factor
+/// factor -> ( exp )
+/// factor -> number
 pub fn ExpressionGrammar(allocator: std.mem.Allocator) !Grammar {
     const number = Symbol.from("number");
     const plus = Symbol.from("+");
@@ -16,7 +25,7 @@ pub fn ExpressionGrammar(allocator: std.mem.Allocator) !Grammar {
     const term = Symbol.from("term");
     const factor = Symbol.from("factor");
 
-    var builder = try GrammarBuilder.fromStatic(allocator, StaticGrammar.from(
+    var builder = try GrammarBuilder.fromStaticGrammar(allocator, StaticGrammar.from(
         exp,
         &.{ number, plus, times, lparen, rparen },
         &.{ exp, term, factor },
@@ -44,8 +53,8 @@ test "augmented expression grammar" {
     const allocator = std.testing.allocator;
     const grammar = try ExpressionGrammar(allocator);
 
-    var builder = try GrammarBuilder.fromOwned(allocator, grammar);
-    const augmented_grammar = try builder.toAugmented();
+    var builder = try GrammarBuilder.fromOwnedGrammar(allocator, grammar);
+    const augmented_grammar = try builder.toAugmentedGrammar();
     defer augmented_grammar.deinit(allocator);
 
     try std.testing.expect(augmented_grammar.start_symbol.eql(Symbol.from("S'")));
@@ -57,8 +66,8 @@ test "augmented expression grammar" {
 /// Caller must deinit the grammar.
 fn createAugmentedGrammar(allocator: std.mem.Allocator) !Grammar {
     const grammar = try ExpressionGrammar(allocator);
-    var builder = try GrammarBuilder.fromOwned(allocator, grammar);
-    return try builder.toAugmented();
+    var builder = try GrammarBuilder.fromOwnedGrammar(allocator, grammar);
+    return try builder.toAugmentedGrammar();
 }
 
 test "dangling pointer bug demonstration" {

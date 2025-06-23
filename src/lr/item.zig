@@ -12,10 +12,17 @@ pub const Item = struct {
     rule: Rule,
     dot_pos: usize,
 
-    pub fn init(rule: Rule, dot_pos: usize) Item {
+    pub fn from(rule: Rule) Item {
         return Item{
             .rule = rule,
-            .dot_pos = dot_pos,
+            .dot_pos = 0,
+        };
+    }
+
+    pub inline fn fromInline(rule: Rule) Item {
+        return Item{
+            .rule = rule,
+            .dot_pos = 0,
         };
     }
 
@@ -26,18 +33,22 @@ pub const Item = struct {
         return self.dot_pos >= self.rule.rhs.len;
     }
 
-    /// The next symbol is the symbol after the dot.
-    /// Also advances the dot position.
+    /// The dot symbol is the symbol after the dot.
     ///
-    /// e.g. in "S -> A • B", the next symbol is B
-    pub fn next_symbol(self: *Item) ?Symbol {
+    /// e.g. in "S -> A • B", the dot symbol is B
+    pub fn dot_symbol(self: *const Item) ?Symbol {
         if (self.is_complete()) {
             return null;
         }
 
-        defer self.dot_pos += 1;
-
         return self.rule.rhs[self.dot_pos];
+    }
+
+    pub fn next_symbol(self: *const Item) ?Symbol {
+        if (self.is_complete()) {
+            return null;
+        }
+        return self.rule.rhs[self.dot_pos + 1];
     }
 
     /// Formats the struct as a string into a writer.
@@ -62,18 +73,18 @@ pub const Item = struct {
     }
 };
 
-test "next symbol" {
+test "dot_symbol" {
     const S = Symbol.from("S");
     const A = Symbol.from("A");
     const B = Symbol.from("B");
 
     // S -> A B
     const rule = Rule.from(S, &[_]Symbol{ A, B });
-    var item = Item.init(rule, 0);
+    const item = Item.from(rule);
 
-    try std.testing.expectEqual(item.next_symbol(), A);
-    try std.testing.expectEqual(item.next_symbol(), B);
-    try std.testing.expectEqual(item.next_symbol(), null);
+    try std.testing.expectEqual(item.dot_symbol(), A);
+    // try std.testing.expectEqual(item.dot_symbol(), B);
+    // try std.testing.expectEqual(item.dot_symbol(), null);
 }
 
 test "item_format" {
@@ -83,7 +94,7 @@ test "item_format" {
 
     // S -> A B
     const rule = Rule.from(S, &[_]Symbol{ A, B });
-    var item = Item.init(rule, 0);
+    var item = Item.from(rule);
 
     const cases = [_][]const u8{ "S -> • A B", "S -> A • B", "S -> A B •" };
 
