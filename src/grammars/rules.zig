@@ -41,6 +41,27 @@ pub const Rule = struct {
             }
         }
     }
+
+    /// Iterate over all rules whose `lhs` matches a given symbol.
+    pub const LhsIter = struct {
+        rules: []const Rule,
+        lhs: Symbol,
+        idx: usize = 0,
+
+        pub inline fn from(rules: []const Rule, lhs: Symbol) LhsIter {
+            return LhsIter{ .rules = rules, .lhs = lhs, .idx = 0 };
+        }
+
+        pub fn next(self: *LhsIter) ?Rule {
+            while (self.idx < self.rules.len) {
+                const r = self.rules[self.idx];
+                self.idx += 1; // advance cursor
+                if (r.lhs.eqlTo(self.lhs))
+                    return r;
+            }
+            return null;
+        }
+    };
 };
 
 test "rule" {
@@ -48,4 +69,19 @@ test "rule" {
     const str = try std.fmt.allocPrint(std.testing.allocator, "{s}", .{rule});
     defer std.testing.allocator.free(str);
     try std.testing.expectEqualStrings("S -> A A", str);
+}
+
+test "lhs_iter" {
+    const S = Symbol.from("S");
+    const A = Symbol.from("A");
+    const a = Symbol.from("a");
+
+    const rules = &.{
+        Rule.from(S, &.{ A, a }),
+        Rule.from(A, &.{a}),
+    };
+
+    var iter = Rule.LhsIter.from(rules, S);
+    try std.testing.expectEqual(rules[0], iter.next());
+    try std.testing.expectEqual(null, iter.next());
 }

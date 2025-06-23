@@ -5,6 +5,7 @@ const grammars = @import("grammars");
 const Symbol = grammars.Symbol;
 const Grammar = grammars.Grammar;
 const GrammarBuilder = grammars.GrammarBuilder;
+const Rule = grammars.Rule;
 
 const Item = @import("item.zig").Item;
 
@@ -101,11 +102,8 @@ pub const Automaton = struct {
 
             try processed_symbols.put(dot_symbol.name, {});
 
-            for (self.grammar.rules) |rule| {
-                if (!rule.lhs.eqlTo(dot_symbol)) {
-                    continue;
-                }
-
+            var rule_iter = Rule.LhsIter.from(self.grammar.rules, dot_symbol);
+            while (rule_iter.next()) |rule| {
                 const new_item = Item.from(rule);
                 std.debug.print("new item: {any}\n", .{new_item});
                 try new_items.append(new_item);
