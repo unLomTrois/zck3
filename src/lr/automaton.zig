@@ -78,51 +78,31 @@ pub const Automaton = struct {
     /// S -> • A a
     /// A -> • B b
     /// B -> • c
-    ///
-    /// TODO: CLOSURE can be rewritten to avoid recursion
-    ///
-    fn CLOSURE(self: *Automaton, items: []const Item) ![]Item {
-        var new_items = std.ArrayList(Item).init(self.allocator);
-        var processed_symbols = std.StringHashMap(void).init(self.allocator);
-        defer processed_symbols.deinit();
+    fn CLOSURE(self: *Automaton, items: []const Item) std.mem.Allocator.Error![]Item {
+        var closure_items = std.ArrayList(Item).init(self.allocator);
+        var seen_symbols = std.StringHashMap(void).init(self.allocator);
+        defer seen_symbols.deinit();
 
-        std.debug.print("\n", .{});
-        for (items) |item| {
-            if (item.is_complete()) {
-                continue;
-            }
+        try closure_items.appendSlice(items);
 
-            std.debug.print("closure item: {any}\n", .{item});
-
+        var item_iter = Item.IncompleteIter.from(&closure_items);
+        while (item_iter.next()) |item| { // iter works as a work-list here
             const dot_symbol = item.dot_symbol().?; // item is not complete, so dot symbol is always present
-            std.debug.print("dot symbol: {any}\n", .{dot_symbol});
-            if (self.grammar.is_terminal(dot_symbol)) { // skip terminals, they don't have any productions
-                continue;
-            }
 
-            try processed_symbols.put(dot_symbol.name, {});
+            if (self.grammar.is_terminal(dot_symbol)) continue; // skip terminals, they don't have any productions
 
-            var rule_iter = Rule.LhsIter.from(self.grammar.rules, dot_symbol);
+            if (seen_symbols.contains(dot_symbol.name)) continue;
+
+            try seen_symbols.put(dot_symbol.name, {});
+
+            var rule_iter = Rule.LhsMatchIter.from(self.grammar.rules, dot_symbol);
             while (rule_iter.next()) |rule| {
                 const new_item = Item.from(rule);
-                std.debug.print("new item: {any}\n", .{new_item});
-                try new_items.append(new_item);
-
-                // Filter out items which dot symbol were already processed
-                // E.g. CLOSURE(S -> • E): E -> • E + T, E -> • T
-                // We don't want to add E -> • E + T to the closure again
-                const new_dot_symbol = new_item.dot_symbol() orelse unreachable;
-                if (processed_symbols.contains(new_dot_symbol.name)) {
-                    continue;
-                }
-
-                const sub_closure = try self.CLOSURE(&.{new_item});
-                try new_items.appendSlice(sub_closure);
-                self.allocator.free(sub_closure); // appendSlice copies sub_closure, so it's safe
+                try closure_items.append(new_item);
             }
         }
 
-        return try new_items.toOwnedSlice();
+        return try closure_items.toOwnedSlice();
     }
 };
 
