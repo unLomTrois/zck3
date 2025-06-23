@@ -80,7 +80,7 @@ pub const Automaton = struct {
     /// B -> • c
     fn CLOSURE(self: *Automaton, items: []const Item) std.mem.Allocator.Error![]Item {
         var closure_items = std.ArrayList(Item).init(self.allocator);
-        var seen_symbols = Symbol.HashMap.init(self.allocator);
+        var seen_symbols = Symbol.HashMap(void).init(self.allocator);
         defer seen_symbols.deinit();
 
         try closure_items.appendSlice(items);

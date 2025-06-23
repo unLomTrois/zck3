@@ -63,7 +63,9 @@ pub const Symbol = struct {
         }
     };
 
-    pub const HashMap = std.HashMap(Symbol, void, HashContext, std.hash_map.default_max_load_percentage);
+    pub fn HashMap(comptime V: type) type {
+        return std.HashMap(Symbol, V, HashContext, std.hash_map.default_max_load_percentage);
+    }
 };
 
 test "symbol_from" {
@@ -335,7 +337,7 @@ test "arena variant of less managed symbol array list" {
 }
 
 test "symbol hash maps" {
-    var h = std.HashMap(Symbol, void, Symbol.HashContext, std.hash_map.default_max_load_percentage).init(std.testing.allocator);
+    var h = Symbol.HashMap(void).init(std.testing.allocator);
     defer h.deinit();
 
     try h.put(Symbol.from("S"), {});
