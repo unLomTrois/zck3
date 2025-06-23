@@ -43,16 +43,16 @@ pub const Rule = struct {
     }
 
     /// Iterate over all rules whose `lhs` matches a given symbol.
-    pub const LhsIter = struct {
+    pub const LhsMatchIter = struct {
         rules: []const Rule,
         lhs: Symbol,
         idx: usize = 0,
 
-        pub inline fn from(rules: []const Rule, lhs: Symbol) LhsIter {
-            return LhsIter{ .rules = rules, .lhs = lhs, .idx = 0 };
+        pub inline fn from(rules: []const Rule, lhs: Symbol) LhsMatchIter {
+            return LhsMatchIter{ .rules = rules, .lhs = lhs, .idx = 0 };
         }
 
-        pub fn next(self: *LhsIter) ?Rule {
+        pub fn next(self: *LhsMatchIter) ?Rule {
             while (self.idx < self.rules.len) {
                 const r = self.rules[self.idx];
                 self.idx += 1; // advance cursor
@@ -81,7 +81,7 @@ test "lhs_iter" {
         Rule.from(A, &.{a}),
     };
 
-    var iter = Rule.LhsIter.from(rules, S);
+    var iter = Rule.LhsMatchIter.from(rules, S);
     try std.testing.expectEqual(rules[0], iter.next());
     try std.testing.expectEqual(null, iter.next());
 }
