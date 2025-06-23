@@ -71,6 +71,27 @@ pub const Item = struct {
             try writer.print(" •", .{});
         }
     }
+
+    /// Iterate over the *incomplete* items stored in a mutable `ArrayList`.
+    /// Because we keep a pointer to the list, items appended during the walk are
+    /// picked up automatically – perfect for the work-list pattern.
+    pub const IncompleteIter = struct {
+        list: *std.ArrayList(Item),
+        idx: usize = 0,
+
+        pub inline fn from(list: *std.ArrayList(Item)) IncompleteIter {
+            return IncompleteIter{ .list = list, .idx = 0 };
+        }
+
+        pub fn next(self: *IncompleteIter) ?Item {
+            while (self.idx < self.list.items.len) {
+                const item = self.list.items[self.idx];
+                self.idx += 1;
+                if (!item.is_complete()) return item;
+            }
+            return null;
+        }
+    };
 };
 
 test "dot_symbol" {
