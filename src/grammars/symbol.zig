@@ -52,6 +52,18 @@ pub const Symbol = struct {
     pub fn eqlTo(self: *const Symbol, other: Symbol) bool {
         return self.eql(other);
     }
+
+    const HashContext = struct {
+        pub fn hash(_: HashContext, key: Symbol) u64 {
+            return std.hash.Wyhash.hash(0, key.name);
+        }
+
+        pub fn eql(_: HashContext, a: Symbol, b: Symbol) bool {
+            return a.eql(b);
+        }
+    };
+
+    pub const HashMap = std.HashMap(Symbol, void, HashContext, std.hash_map.default_max_load_percentage);
 };
 
 test "symbol_from" {
@@ -320,4 +332,16 @@ test "arena variant of less managed symbol array list" {
     try std.testing.expectEqualStrings("A", symbol_array_list.symbols.items[1].name);
     try std.testing.expectEqualStrings("B", symbol_array_list.symbols.items[2].name);
     try std.testing.expectEqualStrings("S'", symbol_array_list.symbols.items[3].name);
+}
+
+test "symbol hash maps" {
+    var h = std.HashMap(Symbol, void, Symbol.HashContext, std.hash_map.default_max_load_percentage).init(std.testing.allocator);
+    defer h.deinit();
+
+    try h.put(Symbol.from("S"), {});
+    try h.put(Symbol.from("A"), {});
+    try h.put(Symbol.from("B"), {});
+
+    try std.testing.expect(h.contains(Symbol.from("S")));
+    try std.testing.expect(h.contains(Symbol.from("A")));
 }

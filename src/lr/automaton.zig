@@ -80,7 +80,7 @@ pub const Automaton = struct {
     /// B -> • c
     fn CLOSURE(self: *Automaton, items: []const Item) std.mem.Allocator.Error![]Item {
         var closure_items = std.ArrayList(Item).init(self.allocator);
-        var seen_symbols = std.StringHashMap(void).init(self.allocator);
+        var seen_symbols = Symbol.HashMap.init(self.allocator);
         defer seen_symbols.deinit();
 
         try closure_items.appendSlice(items);
@@ -91,9 +91,9 @@ pub const Automaton = struct {
 
             if (self.grammar.is_terminal(dot_symbol)) continue; // skip terminals, they don't have any productions
 
-            if (seen_symbols.contains(dot_symbol.name)) continue;
+            if (seen_symbols.contains(dot_symbol)) continue;
 
-            try seen_symbols.put(dot_symbol.name, {});
+            try seen_symbols.put(dot_symbol, {});
 
             var rule_iter = Rule.LhsMatchIter.from(self.grammar.rules, dot_symbol);
             while (rule_iter.next()) |rule| {
