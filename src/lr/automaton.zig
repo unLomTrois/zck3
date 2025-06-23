@@ -43,19 +43,20 @@ pub const Automaton = struct {
     }
 
     fn build(self: *Automaton) !void {
+        // Augment the grammar
         var builder = try GrammarBuilder.fromOwnedGrammar(self.allocator, self.grammar);
         const augmented_grammar = try builder.toAugmentedGrammar();
         self.grammar = augmented_grammar;
 
+        // Get the start rule
         const start_rule = try self.grammar.get_start_rule();
-
-        std.debug.print("start rule:\n{any}\n", .{start_rule});
         const start_item = Item.from(start_rule);
 
-        std.debug.print("start item:\n{any}\n", .{start_item});
-
+        // Compute the initial closure
         const initial_items = try self.CLOSURE(&.{start_item});
-        std.debug.print("\nResulting closure:\n{any}\n", .{initial_items});
+        for (initial_items) |item| {
+            std.debug.print("{any}\n", .{item});
+        }
 
         defer self.allocator.free(initial_items);
 
