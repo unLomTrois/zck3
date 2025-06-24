@@ -113,6 +113,38 @@ pub const Item = struct {
             return null;
         }
     };
+
+    pub const UniqueIter = struct {
+        items: []const Item,
+        idx: usize = 0,
+        array_hash_map: Symbol.ArrayHashMap(void),
+
+        pub fn init(allocator: std.mem.Allocator, items: []const Item) UniqueIter {
+            return UniqueIter{
+                .items = items,
+                .idx = 0,
+                .array_hash_map = Symbol.ArrayHashMap(void).init(allocator),
+            };
+        }
+
+        pub fn deinit(self: *UniqueIter) void {
+            self.array_hash_map.deinit();
+        }
+
+        pub fn next(self: *UniqueIter) !?Item {
+            while (self.idx < self.items.len) {
+                const item = self.items[self.idx];
+                self.idx += 1;
+                const symbol = item.dot_symbol() orelse continue;
+                if (!self.array_hash_map.contains(symbol)) {
+                    try self.array_hash_map.put(symbol, {});
+
+                    return item;
+                }
+            }
+            return null;
+        }
+    };
 };
 
 test "dot_symbol" {

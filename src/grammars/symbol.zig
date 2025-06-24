@@ -66,6 +66,20 @@ pub const Symbol = struct {
     pub fn HashMap(comptime V: type) type {
         return std.HashMap(Symbol, V, HashContext, std.hash_map.default_max_load_percentage);
     }
+
+    const ArrayHashContext = struct {
+        pub fn hash(_: ArrayHashContext, key: Symbol) u32 {
+            return std.hash.cityhash.CityHash32.hash(key.name);
+        }
+
+        pub fn eql(_: ArrayHashContext, a: Symbol, b: Symbol, _: usize) bool {
+            return a.eql(b);
+        }
+    };
+
+    pub fn ArrayHashMap(comptime V: type) type {
+        return std.ArrayHashMap(Symbol, V, ArrayHashContext, true);
+    }
 };
 
 test "symbol_from" {

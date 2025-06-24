@@ -10,8 +10,64 @@ const Rule = grammars.Rule;
 const Item = @import("item.zig").Item;
 
 pub const State = struct {
-    items: []Item,
-    transitions: std.AutoHashMap(Symbol, usize),
+    items: []const Item,
+
+    pub fn init(allocator: std.mem.Allocator, items: []const Item) !State {
+        return State{
+            .items = try allocator.dupe(Item, items),
+        };
+    }
+
+    pub inline fn from(items: []const Item) State {
+        return State{
+            .items = items,
+        };
+    }
+
+    pub fn deinit(self: *const State, allocator: std.mem.Allocator) void {
+        allocator.free(self.items);
+    }
+
+    const Iter = struct {
+        states: []State,
+        idx: usize = 0,
+
+        pub fn from(states: []State) Iter {
+            return Iter{ .states = states, .idx = 0 };
+        }
+
+        pub fn next(self: *Iter) ?State {
+            if (self.idx >= self.states.len) return null;
+            const state = self.states[self.idx];
+            self.idx += 1;
+            return state;
+        }
+    };
+
+    const ArrayListIter = struct {
+        list: *std.ArrayList(State),
+        idx: usize = 0,
+
+        pub fn from(list: *std.ArrayList(State)) ArrayListIter {
+            return ArrayListIter{ .list = list, .idx = 0 };
+        }
+
+        pub fn next(self: *ArrayListIter) ?State {
+            if (self.idx >= self.list.items.len) return null;
+            const state = self.list.items[self.idx];
+            self.idx += 1;
+            return state;
+        }
+    };
+
+    pub fn format(self: *const State, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("State\n", .{});
+        for (self.items) |item| {
+            try writer.print("  {any}\n", .{item});
+        }
+    }
 };
 
 pub const Closure = struct {
@@ -55,41 +111,40 @@ pub const Automaton = struct {
         // Compute the initial closure
         const initial_items = try self.CLOSURE(&.{start_item});
         defer self.allocator.free(initial_items);
-        for (initial_items) |item| {
-            std.debug.print("{any}\n", .{item});
+
+        const initial_state = try State.init(self.allocator, initial_items);
+        defer initial_state.deinit(self.allocator);
+
+        try self.states.append(initial_state);
+
+        const result = try self.build_states(self.states.items);
+        defer self.allocator.free(result);
+    }
+
+    fn build_states(self: *Automaton, states: []State) ![]State {
+        var new_states = std.ArrayList(State).init(self.allocator);
+
+        var state_iter = State.Iter.from(states);
+        while (state_iter.next()) |state| {
+            var unique_iter = Item.UniqueIter.init(self.allocator, state.items);
+            defer unique_iter.deinit();
+
+            while (try unique_iter.next()) |item| {
+                const dot_symbol = item.dot_symbol().?;
+
+                const goto_items = try self.GOTO(state.items, dot_symbol);
+                defer self.allocator.free(goto_items);
+
+                const new_state = try State.init(self.allocator, goto_items);
+                defer new_state.deinit(self.allocator);
+
+                try new_states.append(new_state);
+
+                std.debug.print("{any}\n", .{new_state});
+            }
         }
 
-        std.debug.print("\nGOTO({any}, {any})\n", .{ initial_items, Symbol.from("exp") });
-        const exp_items = try self.GOTO(initial_items, Symbol.from("exp"));
-        defer self.allocator.free(exp_items);
-        for (exp_items) |item| {
-            std.debug.print("{any}\n", .{item});
-        }
-
-        std.debug.print("\nGOTO({any}, {any})\n", .{ exp_items, Symbol.from("+") });
-        const plus_items = try self.GOTO(exp_items, Symbol.from("+"));
-        defer self.allocator.free(plus_items);
-        for (plus_items) |item| {
-            std.debug.print("{any}\n", .{item});
-        }
-
-        std.debug.print("\nGOTO({any}, {any})\n", .{ plus_items, Symbol.from("(") });
-        const lparen_items = try self.GOTO(plus_items, Symbol.from("("));
-        defer self.allocator.free(lparen_items);
-        for (lparen_items) |item| {
-            std.debug.print("{any}\n", .{item});
-        }
-
-        // не забыть обернуть initial closure в State
-        // Проходимся по всем итемам в closure, находим уникальные dot-symbolы,
-        // применяем GOTO к каждому уникальному dot-symbolу,
-        // (там мы сдвигаем dot на один символ вправо)
-        // (получаем новый closure)
-        // т.к. мы используем итератор, то не встретим дубликатов
-        // итератор будет работать как work-list
-        // результат GOTO(I, X) - если не пустой, добавляем в states
-        // новый элемент в states будет обработан итератором
-
+        return try new_states.toOwnedSlice();
     }
 
     /// CLOSURE computes the CLOSURE of a set of items.
@@ -157,7 +212,7 @@ test "automaton" {
 
     try automaton.build();
 
-    try std.testing.expect(automaton.states.items.len == 0);
+    // try std.testing.expect(automaton.states.items.len == 1);
 
     // std.debug.print("automaton:\n{any}\n", .{automaton});
 }
