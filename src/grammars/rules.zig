@@ -62,6 +62,25 @@ pub const Rule = struct {
             return null;
         }
     };
+
+    pub const HashContext = struct {
+        pub fn hash(_: HashContext, key: Rule) u64 {
+            var hasher = std.hash.Wyhash.init(0);
+            hasher.update(key.lhs.name);
+            for (key.rhs) |symbol| {
+                hasher.update(symbol.name);
+            }
+            return hasher.final();
+        }
+
+        pub fn eql(hash_context: HashContext, a: Rule, b: Rule) bool {
+            return hash_context.hash(a) == hash_context.hash(b);
+        }
+    };
+
+    pub fn HashMap(comptime V: type) type {
+        return std.HashMap(Rule, V, HashContext, std.hash_map.default_max_load_percentage);
+    }
 };
 
 test "rule" {
@@ -84,4 +103,12 @@ test "lhs_iter" {
     var iter = Rule.LhsMatchIter.from(rules, S);
     try std.testing.expectEqual(rules[0], iter.next());
     try std.testing.expectEqual(null, iter.next());
+}
+
+test "rule_hash_map" {
+    const rule = Rule.from(Symbol.from("S"), &.{ Symbol.from("A"), Symbol.from("A") });
+    var hash_map = Rule.HashMap(void).init(std.testing.allocator);
+    defer hash_map.deinit();
+    try hash_map.put(rule, {});
+    try std.testing.expectEqual(true, hash_map.contains(rule));
 }

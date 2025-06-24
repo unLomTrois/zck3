@@ -145,6 +145,21 @@ pub const Item = struct {
             return null;
         }
     };
+
+    pub const HashContext = struct {
+        pub fn hash(_: HashContext, key: Item) u64 {
+            const rule_hash = (Rule.HashContext{}).hash(key.rule);
+            return rule_hash ^ @as(u64, key.dot_pos);
+        }
+
+        pub fn eql(hash_context: HashContext, a: Item, b: Item) bool {
+            return hash_context.hash(a) == hash_context.hash(b);
+        }
+    };
+
+    pub fn HashMap(comptime V: type) type {
+        return std.HashMap(Item, V, HashContext, std.hash_map.default_max_load_percentage);
+    }
 };
 
 test "dot_symbol" {
@@ -179,4 +194,39 @@ test "item_format" {
         defer item.dot_pos += 1;
         try std.testing.expectEqualStrings(case, str);
     }
+}
+
+test "unique_iter" {
+    const S = Symbol.from("S");
+    const A = Symbol.from("A");
+    const B = Symbol.from("B");
+
+    // S -> A B
+    const rule = Rule.from(S, &[_]Symbol{ A, B });
+    const item = Item.from(rule);
+
+    const item2 = item.advance_dot_clone();
+
+    const items = &[_]Item{ item, item2 };
+
+    var unique_iter = Item.UniqueIter.init(std.testing.allocator, items);
+    defer unique_iter.deinit();
+
+    try std.testing.expectEqual(item, try unique_iter.next()); // S -> • A B
+    try std.testing.expectEqual(item2, try unique_iter.next()); // S -> A • B
+    try std.testing.expectEqual(null, try unique_iter.next()); // S -> A B •
+}
+
+test "item_hash_map" {
+    const S = Symbol.from("S");
+    const A = Symbol.from("A");
+    const B = Symbol.from("B");
+
+    const rule = Rule.from(S, &[_]Symbol{ A, B });
+    const item = Item.from(rule);
+
+    var hash_map = Item.HashMap(void).init(std.testing.allocator);
+    defer hash_map.deinit();
+    try hash_map.put(item, {});
+    try std.testing.expectEqual(true, hash_map.contains(item));
 }

@@ -42,6 +42,39 @@ pub fn ExpressionGrammar(allocator: std.mem.Allocator) !Grammar {
     return try builder.toOwnedGrammar();
 }
 
+// S -> A OP B.
+// A -> id.
+// B -> id.
+// OP -> + | - | * | /
+pub fn SimpleGrammar(allocator: std.mem.Allocator) !Grammar {
+    const id = Symbol.from("id");
+    const plus = Symbol.from("+");
+    const minus = Symbol.from("-");
+    const times = Symbol.from("*");
+    const divide = Symbol.from("/");
+    const S = Symbol.from("S");
+    const A = Symbol.from("A");
+    const B = Symbol.from("B");
+    const OP = Symbol.from("OP");
+
+    var builder = try GrammarBuilder.fromStaticGrammar(allocator, StaticGrammar.from(
+        S,
+        &.{ id, plus, minus, times, divide },
+        &.{ S, A, B, OP },
+        &.{
+            Rule.from(S, &.{ A, OP, B }), // S -> A OP B
+            Rule.from(A, &.{id}), // A -> id
+            Rule.from(B, &.{id}), // B -> id
+            Rule.from(OP, &.{plus}), // OP -> +
+            Rule.from(OP, &.{minus}), // OP -> -
+            Rule.from(OP, &.{times}), // OP -> *
+            Rule.from(OP, &.{divide}), // OP -> /
+        },
+    ));
+
+    return try builder.toOwnedGrammar();
+}
+
 test "expression grammar" {
     const allocator = std.testing.allocator;
     const grammar = try ExpressionGrammar(allocator);
