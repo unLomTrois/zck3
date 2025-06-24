@@ -70,16 +70,6 @@ pub const State = struct {
     }
 };
 
-pub const Closure = struct {
-    items: std.ArrayList(Item),
-
-    pub fn from(allocator: std.mem.Allocator, items: []Item) Closure {
-        return Closure{
-            .items = std.ArrayList(Item).init(allocator).appendSlice(items),
-        };
-    }
-};
-
 pub const Automaton = struct {
     allocator: std.mem.Allocator,
     grammar: Grammar,
