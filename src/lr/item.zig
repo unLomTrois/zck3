@@ -44,11 +44,11 @@ pub const Item = struct {
         return self.rule.rhs[self.dot_pos];
     }
 
-    pub fn next_symbol(self: *const Item) ?Symbol {
-        if (self.is_complete()) {
-            return null;
-        }
-        return self.rule.rhs[self.dot_pos + 1];
+    pub fn advance_dot_clone(self: *const Item) Item {
+        return Item{
+            .rule = self.rule,
+            .dot_pos = self.dot_pos + 1,
+        };
     }
 
     /// Formats the struct as a string into a writer.
@@ -88,6 +88,27 @@ pub const Item = struct {
                 const item = self.list.items[self.idx];
                 self.idx += 1;
                 if (!item.is_complete()) return item;
+            }
+            return null;
+        }
+    };
+
+    /// Searches items that have the same dot symbol as the given symbol.
+    pub const FilterDotSymbolIter = struct {
+        items: []const Item,
+        symbol: Symbol,
+        idx: usize = 0,
+
+        pub inline fn from(items: []const Item, symbol: Symbol) FilterDotSymbolIter {
+            return FilterDotSymbolIter{ .items = items, .symbol = symbol, .idx = 0 };
+        }
+
+        pub fn next(self: *FilterDotSymbolIter) ?Item {
+            while (self.idx < self.items.len) {
+                const item = self.items[self.idx];
+                self.idx += 1;
+                const symbol = item.dot_symbol() orelse continue;
+                if (symbol.eqlTo(self.symbol)) return item;
             }
             return null;
         }

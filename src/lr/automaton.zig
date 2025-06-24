@@ -54,15 +54,42 @@ pub const Automaton = struct {
 
         // Compute the initial closure
         const initial_items = try self.CLOSURE(&.{start_item});
+        defer self.allocator.free(initial_items);
         for (initial_items) |item| {
             std.debug.print("{any}\n", .{item});
         }
 
-        defer self.allocator.free(initial_items);
+        std.debug.print("\nGOTO({any}, {any})\n", .{ initial_items, Symbol.from("exp") });
+        const exp_items = try self.GOTO(initial_items, Symbol.from("exp"));
+        defer self.allocator.free(exp_items);
+        for (exp_items) |item| {
+            std.debug.print("{any}\n", .{item});
+        }
 
-        // const closure = Closure.from(self.allocator, &.{start_item});
-        // const state = State.from(self.allocator, &.{closure});
-        // try self.states.append(state);
+        std.debug.print("\nGOTO({any}, {any})\n", .{ exp_items, Symbol.from("+") });
+        const plus_items = try self.GOTO(exp_items, Symbol.from("+"));
+        defer self.allocator.free(plus_items);
+        for (plus_items) |item| {
+            std.debug.print("{any}\n", .{item});
+        }
+
+        std.debug.print("\nGOTO({any}, {any})\n", .{ plus_items, Symbol.from("(") });
+        const lparen_items = try self.GOTO(plus_items, Symbol.from("("));
+        defer self.allocator.free(lparen_items);
+        for (lparen_items) |item| {
+            std.debug.print("{any}\n", .{item});
+        }
+
+        // не забыть обернуть initial closure в State
+        // Проходимся по всем итемам в closure, находим уникальные dot-symbolы,
+        // применяем GOTO к каждому уникальному dot-symbolу,
+        // (там мы сдвигаем dot на один символ вправо)
+        // (получаем новый closure)
+        // т.к. мы используем итератор, то не встретим дубликатов
+        // итератор будет работать как work-list
+        // результат GOTO(I, X) - если не пустой, добавляем в states
+        // новый элемент в states будет обработан итератором
+
     }
 
     /// CLOSURE computes the CLOSURE of a set of items.
@@ -104,6 +131,20 @@ pub const Automaton = struct {
         }
 
         return try closure_items.toOwnedSlice();
+    }
+
+    fn GOTO(self: *Automaton, items: []const Item, symbol: Symbol) std.mem.Allocator.Error![]Item {
+        var goto_items = std.ArrayList(Item).init(self.allocator);
+        defer goto_items.deinit();
+
+        var item_iter = Item.FilterDotSymbolIter.from(items, symbol);
+        while (item_iter.next()) |item| {
+            // std.debug.print("{any}\n", .{item});
+            const new_item = item.advance_dot_clone();
+            try goto_items.append(new_item);
+        }
+
+        return try self.CLOSURE(goto_items.items);
     }
 };
 
